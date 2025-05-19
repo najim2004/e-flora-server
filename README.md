@@ -5,7 +5,7 @@ A fully OOP-structured Express server with TypeScript, Mongoose, and comprehensi
 ## Features
 
 - ✅ **TypeScript** - Strongly typed codebase
-- ✅ **Express** - Fast, unopinionated web framework 
+- ✅ **Express** - Fast, unopinionated web framework
 - ✅ **Mongoose** - MongoDB object modeling with validation
 - ✅ **OOP Structure** - Classes, interfaces, and clean architecture
 - ✅ **JWT Authentication** - Secure user login and registration
@@ -20,7 +20,7 @@ A fully OOP-structured Express server with TypeScript, Mongoose, and comprehensi
 /digitalkrishi-server
 ├── src/
 │   ├── config/          # Configuration modules
-│   ├── controllers/     # Request handlers  
+│   ├── controllers/     # Request handlers
 │   ├── interfaces/      # TypeScript interfaces
 │   ├── middlewares/     # Express middlewares
 │   ├── models/          # Mongoose models
@@ -49,23 +49,27 @@ A fully OOP-structured Express server with TypeScript, Mongoose, and comprehensi
 ### Installation
 
 1. Clone the repository
+
 ```bash
 git clone <repository-url>
 cd digitalkrishi-server
 ```
 
 2. Install dependencies
+
 ```bash
 npm install
 ```
 
 3. Set up environment variables
+
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
 ```
 
 4. Start the development server
+
 ```bash
 npm run dev
 ```
@@ -75,6 +79,7 @@ npm run dev
 ### Authentication
 
 - **POST /api/auth/register** - Register a new user
+
   - Body: `{ "name": "User Name", "email": "user@example.com", "password": "password123" }`
 
 - **POST /api/auth/login** - Login a user
@@ -89,6 +94,7 @@ npm run dev
 ## Logging
 
 Logs are stored in the `logs` directory:
+
 - `all.log` - All log levels
 - `error.log` - Error logs only
 

@@ -26,3 +26,5 @@ export class AuthRouter {
     );
   }
 }
+
+export const authRouter = new AuthRouter().router;

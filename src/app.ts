@@ -1,10 +1,9 @@
-import express, { Application, NextFunction, Request, Response } from 'express';
+import express, { Application, Request, Response, json, urlencoded } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { json, urlencoded } from 'express';
 
-import { AuthRouter } from './routes/auth.routes';
+import { authRouter } from './routes/auth.routes';
 import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { ErrorHandler } from './utils/errors';
 import { Logger } from './utils/logger';
@@ -44,10 +43,10 @@ export class App {
   }
 
   private initializeRoutes(): void {
-    this.app.use('/api/auth', new AuthRouter().router);
+    this.app.use('/api/auth', authRouter);
 
     // Handle 404
-    this.app.use('*', (req: Request, res: Response) => {
+    this.app.use(/(.*)/, (req: Request, res: Response) => {
       this.logger.warn(`Route not found: ${req.method} ${req.originalUrl}`);
       res.status(404).json({
         success: false,
