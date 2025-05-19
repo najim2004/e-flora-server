@@ -1,110 +1,101 @@
-import mongoose, { Schema, Model } from 'mongoose';
-import bcrypt from 'bcryptjs';
-import { IUserDocument, UserRole } from '../interfaces/auth.interface';
-import { Logger } from '../utils/logger';
+import mongoose, { model, models } from 'mongoose';
+import { IUser } from '../interfaces/user.interface';
 
-// User schema
-const userSchema = new Schema<IUserDocument>(
+// ENUM constants
+const LANGUAGE_ENUM = ['ENG', 'BN'];
+const MEASUREMENT_UNIT_ENUM = ['kilometers', 'meters', 'miles'];
+
+// Subschemas
+const privacySettingsSchema = new mongoose.Schema(
   {
-    fullName: {
-      type: String,
-      required: [true, 'Name is required'],
-      trim: true,
-      minlength: [2, 'Name must be at least 2 characters'],
-      maxlength: [50, 'Name cannot exceed 50 characters'],
+    profileVisibility: {
+      showToOtherFarmers: { type: Boolean, default: true },
+      showLocationOnMap: { type: Boolean, default: false },
     },
-    email: {
-      type: String,
-      required: [true, 'Email is required'],
-      unique: true,
-      trim: true,
-      lowercase: true,
-      match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please provide a valid email address'],
-    },
-    password: {
-      type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
-    },
-    role: {
-      type: String,
-      enum: Object.values(UserRole),
-      default: UserRole.USER,
+    dataUsage: {
+      shareAnonymousFarmingData: { type: Boolean, default: true },
+      personalizedRecommendations: { type: Boolean, default: true },
     },
   },
-  {
-    timestamps: true,
-    toJSON: {
-      transform(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.password;
-        delete ret.__v;
-      },
-    },
-  }
+  { _id: false }
 );
 
-// Pre-save hook to hash password
-userSchema.pre('save', async function (next) {
-  // Only hash password if it's modified or new
-  if (!this.isModified('password')) return next();
-  const logger = new Logger('User.pre(save)');
+const securitySettingsSchema = new mongoose.Schema(
+  {
+    twoFactorAuthentication: { type: Boolean, default: true },
+    loginNotifications: { type: Boolean, default: true },
+    activeSessions: [{ type: String }],
+  },
+  { _id: false }
+);
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    logger.logError(error as Error, 'User.pre(save)');
-    next(error as Error);
-  }
-});
+const notificationSettingsSchema = new mongoose.Schema(
+  {
+    channels: {
+      email: Boolean,
+      sms: Boolean,
+      push: Boolean,
+    },
+    types: {
+      weatherAlerts: Boolean,
+      diseaseOutbreaks: Boolean,
+      marketPrices: Boolean,
+      systemUpdates: Boolean,
+      tipsAndRecommendations: Boolean,
+    },
+  },
+  { _id: false }
+);
 
-// Method to compare passwords
-userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  const logger = new Logger('User.comparePassword');
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    logger.logError(error as Error, 'User.comparePassword');
-    return false;
-  }
-};
+const appPreferencesSchema = new mongoose.Schema(
+  {
+    preferredLanguage: {
+      type: String,
+      enum: LANGUAGE_ENUM,
+      default: 'ENG',
+    },
+    measurementUnits: {
+      type: String,
+      enum: MEASUREMENT_UNIT_ENUM,
+      default: 'kilometers',
+    },
+    dataSavingMode: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { _id: false }
+);
 
-// Create and export the User model
-export const UserModel: Model<IUserDocument> = mongoose.model<IUserDocument>('User', userSchema);
+const connectedAccountsSchema = new mongoose.Schema(
+  {
+    facebook: String,
+    phoneNumber: String,
+    google: String,
+  },
+  { _id: false }
+);
 
-// OOP wrapper class for User model operations
-export class User {
-  private static logger = new Logger('User');
-  // Find by ID
-  public static async findById(id: string): Promise<IUserDocument | null> {
-    try {
-      return await UserModel.findById(id);
-    } catch (error) {
-      this.logger.logError(error as Error, 'User.findById');
-      return null;
-    }
-  }
+const userSchema = new mongoose.Schema<IUser>(
+  {
+    name: String,
+    occupation: String,
+    location: String,
+    email: { type: String, unique: true },
+    phoneNumber: String,
+    gender: String,
+    dateOfBirth: Date,
 
-  // Find by email
-  public static async findByEmail(email: string): Promise<IUserDocument | null> {
-    try {
-      return await UserModel.findOne({ email });
-    } catch (error) {
-      this.logger.logError(error as Error, 'User.findByEmail');
-      return null;
-    }
-  }
+    appPreferences: appPreferencesSchema,
 
-  // Create user
-  public static async create(userData: IUserDocument): Promise<IUserDocument> {
-    try {
-      return await UserModel.create(userData);
-    } catch (error) {
-      this.logger.logError(error as Error, 'User.create');
-      throw error;
-    }
-  }
-}
+    accountSettings: {
+      securitySettings: securitySettingsSchema,
+      notificationSettings: notificationSettingsSchema,
+      privacySettings: privacySettingsSchema,
+      connectedAccounts: connectedAccountsSchema,
+    },
+  },
+  { timestamps: true }
+);
+
+export const User = models.User || model<IUser>('User', userSchema);
