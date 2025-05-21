@@ -1,4 +1,4 @@
-import { Types } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export interface LaborResources {
   familyWorkers: string;
@@ -10,9 +10,8 @@ export interface EquipmentAndResources {
   laborResources: LaborResources;
 }
 
-export interface IFarm {
-  _id?: string;
-  user: Types.ObjectId; // user _id
+export interface IFarm extends Document {
+  user: Types.ObjectId;
   farmName: string;
   location: string;
   farmSize: string;
@@ -21,6 +20,4 @@ export interface IFarm {
   conventional: boolean;
   primaryCrops: string[];
   equipmentAndResources: EquipmentAndResources;
-  createdAt?: Date;
-  updatedAt?: Date;
 }

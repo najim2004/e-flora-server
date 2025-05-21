@@ -1,12 +1,9 @@
-import { Types } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
-export interface ICropSuggestionCache {
-  _id?: Types.ObjectId;
+export interface ICropSuggestionCache extends Document {
   geoHash: string;
   soilType: string;
   farmSize: number;
   irrigationAvailability: string;
   cropRecommendationsId: Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
 }

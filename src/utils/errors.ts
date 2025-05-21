@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { Logger } from './logger';
 
 // Base custom error with status code
@@ -50,50 +50,47 @@ export class InternalServerError extends HttpError {
   }
 }
 
-// Centralized error handler middleware
 export class ErrorHandler {
-  private static logger = new Logger('ErrorHandler');
-  public static handleErrors(error: Error, req: Request, res: Response, next: NextFunction): void {
+  private static readonly logger = new Logger('ErrorHandler');
+
+  public static handleErrors = (
+    error: Error,
+    req: Request,
+    res: Response,
+    _next: NextFunction
+  ): void => {
     let statusCode = 500;
     let errorMessage = 'Internal Server Error';
 
-    // If it's our custom error with status
     if (error instanceof HttpError) {
       statusCode = error.status;
       errorMessage = error.message;
     } else if (error.name === 'ValidationError') {
-      // Mongoose validation error
       statusCode = 400;
       errorMessage = error.message;
     } else if (error.name === 'CastError') {
-      // Mongoose cast error
       statusCode = 400;
       errorMessage = 'Invalid ID format';
     } else if (error.name === 'JsonWebTokenError') {
-      // JWT error
       statusCode = 401;
       errorMessage = 'Invalid token';
     } else if (error.name === 'TokenExpiredError') {
-      // JWT expired
       statusCode = 401;
       errorMessage = 'Token expired';
     }
 
-    // Log the error with context
-    this.logger.logError(
+    ErrorHandler.logger.logError(
       error,
       `${req.method} ${req.url} - ${statusCode} - ${req.headers['x-request-id']}`
     );
 
-    // Send response
     res.status(statusCode).json({
       success: false,
       error: {
         message: errorMessage,
         status: statusCode,
-        // Include stack trace only in development
         ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
       },
     });
-  }
+  };
 }

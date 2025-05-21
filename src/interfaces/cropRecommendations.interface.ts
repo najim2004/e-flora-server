@@ -1,4 +1,4 @@
-import { Types } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export interface Weather {
   temperature: number;
@@ -17,7 +17,7 @@ export interface CultivationTips {
   tips: string[];
 }
 
-export interface ICropRecommendations {
+export interface ICropRecommendations extends Document {
   crops: Crops[];
   cultivationTips: CultivationTips[];
   weathers: Weather[];

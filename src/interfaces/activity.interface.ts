@@ -1,4 +1,4 @@
-import { Types } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export interface ActivityDetails {
   confidence: number;
@@ -6,9 +6,8 @@ export interface ActivityDetails {
   location: string;
 }
 
-export interface IActivity {
-  _id?: string;
-  user: Types.ObjectId; // user _id
+export interface IActivity extends Document {
+  user: Types.ObjectId;
   type: string;
   title: string;
   description: string;
@@ -16,6 +15,4 @@ export interface IActivity {
   date: Date;
   icon: string;
   details: ActivityDetails;
-  createdAt?: Date;
-  updatedAt?: Date;
 }

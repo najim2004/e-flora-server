@@ -10,7 +10,8 @@ export class ValidationMiddleware {
    * @param schema - Joi validation schema
    */
   public static validateBody(schema: Joi.Schema) {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: Response, next: NextFunction):void => {
+      if (!req.body) next(new BadRequestError('Invalid body'));
       const { error } = schema.validate(req.body, {
         abortEarly: false,
         stripUnknown: true,
@@ -34,7 +35,7 @@ export class ValidationMiddleware {
    * @param schema - Joi validation schema
    */
   public static validateParams(schema: Joi.Schema) {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
       const { error } = schema.validate(req.params, {
         abortEarly: false,
         stripUnknown: true,
@@ -56,7 +57,7 @@ export class ValidationMiddleware {
    * @param schema - Joi validation schema
    */
   public static validateQuery(schema: Joi.Schema) {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: Response, next: NextFunction):void => {
       const { error } = schema.validate(req.query, {
         abortEarly: false,
         stripUnknown: true,

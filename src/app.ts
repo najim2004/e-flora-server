@@ -4,9 +4,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { authRouter } from './routes/auth.routes';
+import { userRouter } from './routes/user.routes';
 import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { ErrorHandler } from './utils/errors';
 import { Logger } from './utils/logger';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
@@ -27,7 +29,7 @@ export class App {
     // Security middleware
     this.app.use(helmet());
     this.app.use(cors());
-
+    this.app.use(cookieParser());
     // Request logging
     this.app.use(LoggerMiddleware.requestTracker);
     this.app.use(LoggerMiddleware.morganLogger);
@@ -43,7 +45,8 @@ export class App {
   }
 
   private initializeRoutes(): void {
-    this.app.use('/api/auth', authRouter);
+    this.app.use('/api/v1/auth', authRouter);
+    this.app.use('/api/v1/user', userRouter);
 
     // Handle 404
     this.app.use(/(.*)/, (req: Request, res: Response) => {

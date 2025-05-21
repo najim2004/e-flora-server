@@ -32,10 +32,6 @@ export class AuthValidation {
           'Password must contain at least one uppercase letter, one lowercase letter, and one number',
         'any.required': 'Password is required',
       }),
-
-    confirmPassword: Joi.string().valid(Joi.ref('password')).messages({
-      'any.only': 'Passwords do not match',
-    }),
   });
 
   // Validation schema for user login
@@ -52,5 +48,7 @@ export class AuthValidation {
       'string.empty': 'Password is required',
       'any.required': 'Password is required',
     }),
+  }).messages({
+    'object.unknown': 'Invalid request format',
   });
 }

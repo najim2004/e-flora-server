@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { IActivity } from '../interfaces/activity.model';
+import { IActivity } from '../interfaces/activity.interface';
 
 const activityDetailsSchema = new mongoose.Schema(
   {

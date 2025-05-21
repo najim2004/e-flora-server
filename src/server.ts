@@ -1,18 +1,30 @@
 import mongoose from 'mongoose';
 import { App } from './app';
+import { Server as SocketIOServer } from 'socket.io';
+import http from 'http';
 
 class Server {
   private readonly PORT: number;
   private readonly MONGO_URI: string;
   private app: App;
+  private httpServer: http.Server;
+  private io: SocketIOServer;
 
   constructor() {
     this.PORT = parseInt(process.env.PORT || '5000');
     this.MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/digitalkrishi';
     this.app = new App();
+    this.httpServer = http.createServer(this.app.app);
+    this.io = new SocketIOServer(this.httpServer, {
+      cors: {
+        origin: '*', // Allow all origins for now, adjust as needed
+        methods: ['GET', 'POST'],
+      },
+    });
 
     // Handle uncaught exceptions
     this.setupExceptionHandling();
+    this.setupSocketIO();
   }
 
   private setupExceptionHandling(): void {
@@ -38,15 +50,28 @@ class Server {
     });
   }
 
+  private setupSocketIO(): void {
+    this.io.on('connection', socket => {
+      console.log('A user connected:', socket.id);
+
+      socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+      });
+
+      // Add more socket event handlers here
+    });
+  }
+
   public async start(): Promise<void> {
     try {
       // Connect to MongoDB with retry logic
       await this.connectToMongoDB();
 
-      // Start Express server
-      this.app.app.listen(this.PORT, () => {
+      // Start HTTP server with Socket.IO
+      this.httpServer.listen(this.PORT, () => {
         console.log(`🚀 Server is running on port ${this.PORT}`);
         console.log(`🌐 API available at http://localhost:${this.PORT}/api/`);
+        console.log(`📡 Socket.IO server listening on port ${this.PORT}`);
       });
     } catch (error) {
       console.error('❌ Server startup failed:', error);

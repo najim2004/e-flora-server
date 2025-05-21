@@ -1,3 +1,5 @@
+import { Document, Types } from 'mongoose';
+
 export type Language = 'ENG' | 'BN';
 export type MeasurementUnit = 'kilometers' | 'meters' | 'miles';
 
@@ -56,17 +58,19 @@ export interface AccountSettings {
   connectedAccounts: ConnectedAccounts;
 }
 
-export interface IUser {
-  _id?: string;
+export interface IUser extends Document {
   name: string;
+  role: 'user' | 'admin';
   occupation: string;
   location: string;
   email: string;
+  password: string;
   phoneNumber: string;
   gender: string;
   dateOfBirth: Date;
+  farm: Types.ObjectId;
+  activities: Types.ObjectId;
   appPreferences: AppPreferences;
   accountSettings: AccountSettings;
-  createdAt?: Date;
-  updatedAt?: Date;
+  cropSuggestionHistories: Types.ObjectId[];
 }

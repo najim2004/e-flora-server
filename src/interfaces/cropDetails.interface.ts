@@ -1,4 +1,4 @@
-import { Types } from 'mongoose';
+import { Document } from 'mongoose';
 
 export interface Season {
   planting: string;
@@ -83,8 +83,7 @@ export interface Economics {
   profitabilityAnalysis: ProfitabilityAnalysis;
 }
 
-export interface ICropDetails {
-  _id?: Types.ObjectId;
+export interface ICropDetails extends Document {
   name: string;
   scientificName: string;
   description: string;

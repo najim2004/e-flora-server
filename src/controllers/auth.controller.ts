@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
-import { UserModel } from '../models/user.model';
 import { Logger } from '../utils/logger';
 import { BadRequestError } from '../utils/errors';
 
 export class AuthController {
-  private static authService = new AuthService(UserModel);
+  private static authService = new AuthService();
   private static logger = new Logger('AuthController');
 
   static async register(req: Request, res: Response, next: NextFunction) {
@@ -25,7 +24,7 @@ export class AuthController {
       this.logger.info(`Registration attempt for email: ${email}`);
 
       // Register user
-      const result = await this.authService.register(req.body);
+      await this.authService.register(req.body);
 
       // Log successful registration
       this.logger.info(`User registered successfully: ${email}`);
@@ -34,7 +33,6 @@ export class AuthController {
       res.status(201).json({
         success: true,
         message: 'User registered successfully',
-        data: result,
       });
     } catch (error) {
       this.logger.error(
