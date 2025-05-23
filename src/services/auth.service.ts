@@ -32,11 +32,13 @@ export class AuthService {
 
   public async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const user = await this.userModel.findOne({ email: credentials.email });
+      const user = await this.userModel
+        .findOne({ email: credentials.email })
+        .select('_id name email role password profileImage');
       if (!user) {
         throw new NotFoundError('User not found');
       }
-      const { password, ...userWithoutPassword } = user;
+      const { password, ...userWithoutPassword } = user?.toObject();
 
       const isPasswordValid = await bcrypt.compare(credentials.password, password);
       if (!isPasswordValid) {

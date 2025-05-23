@@ -3,9 +3,9 @@ import { IUser } from '../interfaces/user.interface';
 import bcrypt from 'bcryptjs';
 
 // ENUM constants
-const LANGUAGE_ENUM = ['ENG', 'BN'];
-const MEASUREMENT_UNIT_ENUM = ['kilometers', 'meters', 'miles'];
-const ROLE_ENUM = ['user', 'admin'];
+const LANGUAGE_ENUM = ['ENG', 'BN'] as const;
+const MEASUREMENT_UNIT_ENUM = ['kilometers', 'meters', 'miles'] as const;
+const ROLE_ENUM = ['user', 'admin'] as const;
 
 // Subschemas
 const privacySettingsSchema = new Schema(
@@ -34,16 +34,16 @@ const securitySettingsSchema = new Schema(
 const notificationSettingsSchema = new Schema(
   {
     channels: {
-      email: Boolean,
-      sms: Boolean,
-      push: Boolean,
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
     },
     types: {
-      weatherAlerts: Boolean,
-      diseaseOutbreaks: Boolean,
-      marketPrices: Boolean,
-      systemUpdates: Boolean,
-      tipsAndRecommendations: Boolean,
+      weatherAlerts: { type: Boolean, default: true },
+      diseaseOutbreaks: { type: Boolean, default: true },
+      marketPrices: { type: Boolean, default: true },
+      systemUpdates: { type: Boolean, default: true },
+      tipsAndRecommendations: { type: Boolean, default: true },
     },
   },
   { _id: false }
@@ -71,42 +71,69 @@ const appPreferencesSchema = new Schema(
 
 const connectedAccountsSchema = new Schema(
   {
-    facebook: String,
-    phoneNumber: String,
-    google: String,
+    facebook: { type: String, default: '' },
+    phoneNumber: { type: String, default: '' },
+    google: { type: String, default: '' },
   },
   { _id: false }
 );
 
+// Main user schema
 const userSchema = new Schema<IUser>(
   {
-    name: String,
+    name: { type: String, required: true },
     occupation: String,
     role: { type: String, enum: ROLE_ENUM, default: 'user' },
     location: String,
-    email: { type: String, unique: true },
+    email: { type: String, unique: true, required: true },
     password: {
       type: String,
       required: true,
     },
     phoneNumber: String,
+    profileImage: {
+      type: String,
+      default:
+        'https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg',
+    },
+    bannerImage: String,
     gender: String,
     dateOfBirth: Date,
+
+    // References
     farm: { type: Schema.ObjectId, ref: 'Farm' },
     activities: [{ type: Schema.Types.ObjectId, ref: 'Activity' }],
 
-    appPreferences: appPreferencesSchema,
-
-    accountSettings: {
-      securitySettings: securitySettingsSchema,
-      notificationSettings: notificationSettingsSchema,
-      privacySettings: privacySettingsSchema,
-      connectedAccounts: connectedAccountsSchema,
+    // Preferences and Settings with default values
+    appPreferences: {
+      type: appPreferencesSchema,
+      default: (): Record<string, never> => ({}),
     },
-    cropSuggestionHistories: [Schema.ObjectId],
+    accountSettings: {
+      securitySettings: {
+        type: securitySettingsSchema,
+        default: (): Record<string, never> => ({}),
+      },
+      notificationSettings: {
+        type: notificationSettingsSchema,
+        default: (): Record<string, never> => ({}),
+      },
+      privacySettings: {
+        type: privacySettingsSchema,
+        default: (): Record<string, never> => ({}),
+      },
+      connectedAccounts: {
+        type: connectedAccountsSchema,
+        default: (): Record<string, never> => ({}),
+      },
+    },
+
+    cropSuggestionHistories: [{ type: Schema.Types.ObjectId, ref: 'CropSuggestionHistory' }],
   },
   { timestamps: true }
 );
+
+// Password hashing middleware
 userSchema.pre('save', async function (next) {
   const user = this as IUser;
   if (!user.isModified('password')) return next();
@@ -114,7 +141,6 @@ userSchema.pre('save', async function (next) {
   try {
     const salt = await bcrypt.genSalt(10);
     const hash = bcrypt.hashSync(user.password, salt);
-
     user.password = hash;
     next();
   } catch (error) {
@@ -122,4 +148,5 @@ userSchema.pre('save', async function (next) {
   }
 });
 
+// Export model
 export const User = models.User || model<IUser>('User', userSchema);

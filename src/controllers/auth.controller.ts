@@ -7,7 +7,7 @@ export class AuthController {
   private static authService = new AuthService();
   private static logger = new Logger('AuthController');
 
-  static async register(req: Request, res: Response, next: NextFunction) {
+  static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Basic validation
       const { name, email, password } = req.body;
@@ -35,14 +35,12 @@ export class AuthController {
         message: 'User registered successfully',
       });
     } catch (error) {
-      this.logger.error(
-        `Registration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      this.logger.error(`Registration failed: ${error instanceof Error && error.message}`);
       next(error);
     }
   }
 
-  static async login(req: Request, res: Response, next: NextFunction) {
+  static async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Basic validation
       const { email, password } = req.body;
@@ -55,21 +53,27 @@ export class AuthController {
       this.logger.info(`Login attempt for email: ${email}`);
 
       // Login user
-      const result = await this.authService.login(req.body);
+      const { token, user } = await this.authService.login(req.body);
+
+      // Set token in cookie
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      });
 
       // Log successful login
       this.logger.info(`User logged in successfully: ${email}`);
 
-      // Return success
+      // Return success without sending token in body
       res.status(200).json({
         success: true,
         message: 'User logged in successfully',
-        data: result,
+        data: { user },
       });
     } catch (error) {
-      this.logger.error(
-        `Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      this.logger.error(`Login failed: ${error instanceof Error && error.message}`);
       next(error);
     }
   }

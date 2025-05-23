@@ -13,7 +13,7 @@ export interface LoginCredentials {
 
 export interface AuthResponse {
   token: string;
-  user: Omit<IUser, 'password'>;
+  user: Pick<IUser, '_id' | 'name' | 'email' | 'role'>;
 }
 
 export enum UserRole {

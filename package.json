@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/najim2004/digitalkrishi-server#readme",
   "dependencies": {
+    "@google/genai": "^1.0.1",
     "@types/socket.io": "^3.0.2",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",

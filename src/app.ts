@@ -9,6 +9,7 @@ import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { ErrorHandler } from './utils/errors';
 import { Logger } from './utils/logger';
 import cookieParser from 'cookie-parser';
+import { cropSuggestionRouter } from './routes/cropSuggestion.routes';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ export class App {
   private initializeRoutes(): void {
     this.app.use('/api/v1/auth', authRouter);
     this.app.use('/api/v1/user', userRouter);
+    this.app.use('/api/v1/crop', cropSuggestionRouter);
 
     // Handle 404
     this.app.use(/(.*)/, (req: Request, res: Response) => {

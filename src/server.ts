@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { App } from './app';
 import { Server as SocketIOServer } from 'socket.io';
 import http from 'http';
+import { SocketServer } from './socket.server';
 
 class Server {
   private readonly PORT: number;
@@ -51,15 +52,8 @@ class Server {
   }
 
   private setupSocketIO(): void {
-    this.io.on('connection', socket => {
-      console.log('A user connected:', socket.id);
-
-      socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-      });
-
-      // Add more socket event handlers here
-    });
+    // Initialize socket handlers
+    SocketServer.initializeSocket(this.io);
   }
 
   public async start(): Promise<void> {
