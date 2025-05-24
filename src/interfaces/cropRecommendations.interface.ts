@@ -1,9 +1,12 @@
 import { Document, Types } from 'mongoose';
 
 export interface Weather {
-  temperature: number;
-  humidity: number;
-  rainfall: number;
+  avgMaxTemp: number;
+  avgMinTemp: number;
+  avgHumidity: number;
+  avgRainfall: number;
+  avgWindSpeed: number;
+  dominantWindDirection: string;
 }
 export interface Crops {
   icon: string;

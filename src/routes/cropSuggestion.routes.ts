@@ -15,8 +15,8 @@ export class CropSuggestionRouter {
   private initializeRoutes(): void {
     this.router.get(
       '/crop-suggestion',
-      authMiddleware,
-      ValidationMiddleware.validateQuery(CropSuggestionValidation.cropSuggestion),
+      // authMiddleware,
+      // ValidationMiddleware.validateQuery(CropSuggestionValidation.cropSuggestion),
       CropSuggestionController.generateCropSuggestion
     );
   }

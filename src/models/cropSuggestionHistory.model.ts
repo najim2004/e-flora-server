@@ -4,6 +4,8 @@ import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.inte
 const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
   {
     userId: { type: Schema.Types.ObjectId, required: true },
+    cacheKey: { type: String, required: true },
+    // Additional fields for crop suggestion history
     soilType: { type: String, required: true },
     farmSize: { type: Number, required: true },
     irrigationAvailability: { type: String, required: true },
@@ -17,6 +19,7 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
     timestamps: true,
   }
 );
+CropSuggestionHistorySchema.index({ cacheKey: 1 });
 
 // Export the model
 export const CropSuggestionHistory =

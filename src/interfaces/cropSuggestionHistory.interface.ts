@@ -7,6 +7,7 @@ export interface Location {
 
 export interface ICropSuggestionHistory extends Document {
   userId: Types.ObjectId;
+  cacheKey: string;
   soilType: string;
   farmSize: number;
   irrigationAvailability: string;

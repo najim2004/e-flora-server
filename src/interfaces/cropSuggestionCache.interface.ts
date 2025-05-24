@@ -1,9 +1,8 @@
-import { Document, Types } from 'mongoose';
+import { Document } from 'mongoose';
+import { ICropSuggestionHistory } from './cropSuggestionHistory.interface';
 
-export interface ICropSuggestionCache extends Document {
-  geoHash: string;
-  soilType: string;
-  farmSize: number;
-  irrigationAvailability: string;
-  cropRecommendationsId: Types.ObjectId;
+type Picked = Pick<ICropSuggestionHistory, 'cacheKey' | 'cropRecommendationsId'>;
+
+export interface ICropSuggestionCache extends Document, Picked {
+  expiresAt: Date;
 }

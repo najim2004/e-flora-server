@@ -20,9 +20,12 @@ const CropRecommendationsSchema = new Schema<ICropRecommendations>(
     ],
     weathers: [
       {
-        temperature: { type: Number, required: true },
-        humidity: { type: Number, required: true },
-        rainfall: { type: Number, required: true },
+        avgMaxTemp: { type: Number, required: true },
+        avgMinTemp: { type: Number, required: true },
+        avgHumidity: { type: Number, required: true },
+        avgRainfall: { type: Number, required: true },
+        avgWindSpeed: { type: Number, required: true },
+        dominantWindDirection: { type: String, required: true },
       },
     ],
   },

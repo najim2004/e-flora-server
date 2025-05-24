@@ -8,7 +8,7 @@ class GeminiUtils {
     this.genAI = new GoogleGenAI({ apiKey: GeminiUtils.apiKey });
   }
 
-  async generateResponse(prompt: string): Promise<string | undefined> {
+  public async generateResponse(prompt: string): Promise<string | undefined> {
     try {
       const response = await this.genAI.models.generateContent({
         model: 'gemini-2.0-flash',
@@ -20,7 +20,7 @@ class GeminiUtils {
     }
   }
 
-  async generateResponseWithImage(
+  public async generateResponseWithImage(
     prompt: string,
     imageFile: { path: string; mimeType: string }
   ): Promise<string | undefined> {
@@ -50,7 +50,7 @@ class GeminiUtils {
     }
   }
 
-  async generateEmbedding(text: string): Promise<number[]> {
+  public async generateEmbedding(text: string): Promise<number[]> {
     try {
       const response = await this.genAI.models.embedContent({
         model: 'gemini-embedding-exp-03-07',
@@ -65,6 +65,19 @@ class GeminiUtils {
     } catch (error) {
       throw new Error('Failed to generate embedding from Gemini AI: ' + (error as Error).message);
     }
+  }
+  static calculateCosineSimilarity(vec1: number[], vec2: number[]): number {
+    if (vec1.length !== vec2.length) {
+      throw new Error('Vectors must have the same dimension for cosine similarity calculation.');
+    }
+
+    const dotProduct = vec1.reduce((sum, val, i) => sum + val * vec2[i], 0);
+    const magnitude1 = Math.sqrt(vec1.reduce((sum, val) => sum + val * val, 0));
+    const magnitude2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
+
+    if (magnitude1 === 0 || magnitude2 === 0) return 0;
+
+    return dotProduct / (magnitude1 * magnitude2);
   }
 }
 

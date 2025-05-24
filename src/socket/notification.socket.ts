@@ -1,5 +1,4 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { logger } from '../utils/logger';
 
 interface Notification {
   targetUserId: string;
@@ -14,6 +13,5 @@ export const notificationHandler = (io: SocketIOServer, socket: Socket) => {
       content: data.content,
       timestamp: new Date()
     });
-    logger.info(`Notification sent to user ${data.targetUserId}`);
   });
 };
