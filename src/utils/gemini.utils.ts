@@ -49,6 +49,23 @@ class GeminiUtils {
       );
     }
   }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    try {
+      const response = await this.genAI.models.embedContent({
+        model: 'gemini-embedding-exp-03-07',
+        contents: text,
+      });
+
+      if (!response.embeddings || !response.embeddings.length || !response.embeddings[0].values) {
+        throw new Error('No embeddings generated');
+      }
+
+      return response.embeddings[0].values;
+    } catch (error) {
+      throw new Error('Failed to generate embedding from Gemini AI: ' + (error as Error).message);
+    }
+  }
 }
 
 export default GeminiUtils;

@@ -14,4 +14,16 @@ export class CropSuggestionService {
   public async generateCropSuggestion(input: CropSuggestionInput): any {
     const { soilType, farmSize, irrigationAvailability, location } = input;
   }
+
+  public async findSimilarity(input: CropSuggestionInput): any {
+    const geoHashed = 'xouhosh';
+    const query = { ...input, geoHashed };
+    const findFromUserHistory = await this.cropSuggestionHistoryModel.findOne(query);
+
+    if (!findFromUserHistory) {
+      const findFromCached = await this.cropSuggestionCacheModel.findOne(query);
+      return findFromCached;
+    }
+    return findFromUserHistory;
+  }
 }
