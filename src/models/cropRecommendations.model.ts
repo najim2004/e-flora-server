@@ -7,9 +7,11 @@ const CropRecommendationsSchema = new Schema<ICropRecommendations>(
       {
         icon: { type: String, required: true },
         name: { type: String, required: true },
+        scientificName: { type: String, required: true },
         description: { type: String, required: true },
         match: { type: Number, required: true },
         cropDetailsId: { type: Schema.Types.ObjectId },
+        detailsSlug: { type: String },
       },
     ],
     cultivationTips: [

@@ -1,8 +1,10 @@
-import { model, models, Schema } from 'mongoose';
+import { model, models, Schema, Model } from 'mongoose';
+import { ICropDetails } from '../interfaces/cropDetails.interface';
 
-const cropDetailsSchema = new Schema({
+const cropDetailsSchema = new Schema<ICropDetails>({
   name: { type: String, required: true },
   scientificName: { type: String, required: true },
+  slug: { type: String, unique: true },
   description: { type: String, required: true },
   img: String,
   alternatives: [String],
@@ -18,7 +20,11 @@ const cropDetailsSchema = new Schema({
     ph: { type: String, required: true },
     drainage: { type: String, required: true },
   },
-
+  climate: {
+    temperature: { type: String, required: true }, //example: "20-30°C",
+    humidity: { type: String, required: true }, //example: "60-80%",
+    rainfall: { type: String, required: true }, //example: "1000-1500mm during growing season",
+  },
   water: {
     requirements: { type: String, required: true },
     irrigationSchedule: String,
@@ -98,5 +104,49 @@ const cropDetailsSchema = new Schema({
     },
   },
 });
+// Modified pre-save hook
+cropDetailsSchema.pre('save', async function (next) {
+  try {
+    // If scientificName is modified or new document
+    if (this.isModified('scientificName') || this.isNew) {
+      if (!this.scientificName) {
+        throw new Error('Scientific name is required');
+      }
 
-export const CropDetails = models.cropDetailsSchema || model('CropDetails', cropDetailsSchema);
+      // Create base slug from scientific name
+      const baseSlug = this.scientificName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric chars with hyphen
+        .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+
+      let slug = baseSlug;
+      let counter = 0;
+
+      // Find unique slug
+      while (true) {
+        // Check if slug exists (excluding current document)
+        const existingDoc = await (this.constructor as Model<ICropDetails>).findOne({
+          slug,
+          _id: { $ne: this._id },
+        });
+
+        if (!existingDoc) break;
+
+        // If exists, increment counter and try again
+        counter++;
+        slug = `${baseSlug}-${counter}`;
+      }
+
+      this.slug = slug;
+    }
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+cropDetailsSchema.index({ slug: 1 }, { unique: true });
+
+// Fixed model export
+export const CropDetails =
+  models.CropDetails || model<ICropDetails>('CropDetails', cropDetailsSchema);

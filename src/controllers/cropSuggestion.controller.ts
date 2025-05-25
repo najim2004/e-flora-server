@@ -13,9 +13,12 @@ export class CropSuggestionController {
     next: NextFunction
   ): Promise<void> {
     try {
-      // const userId = req.user?._id;
-      // if (!userId) throw new UnauthorizedError('User not authenticated');
-      const response =await CropSuggestionController.cropSuggestionService.generateCropSuggestion();
+      const userId = req.user?._id;
+      if (!userId) throw new UnauthorizedError('User not authenticated');
+      const response = await CropSuggestionController.cropSuggestionService.generateCropSuggestion(
+        req.body,
+        userId
+      );
       res.status(200).json({
         message: 'Crop suggestion generation started',
         response,

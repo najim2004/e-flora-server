@@ -11,9 +11,11 @@ export interface Weather {
 export interface Crops {
   icon: string;
   name: string;
+  scientificName: string;
   description: string;
   match: number;
   cropDetailsId?: Types.ObjectId;
+  detailsSlug?: string;
 }
 export interface CultivationTips {
   title: string;

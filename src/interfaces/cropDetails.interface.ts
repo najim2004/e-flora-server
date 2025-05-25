@@ -86,6 +86,8 @@ export interface Economics {
 export interface ICropDetails extends Document {
   name: string;
   scientificName: string;
+  slug: string;
+  climate: Climate;
   description: string;
   img: string;
   alternatives: string[];

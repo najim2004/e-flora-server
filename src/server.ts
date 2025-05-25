@@ -3,6 +3,7 @@ import { App } from './app';
 import { Server as SocketIOServer } from 'socket.io';
 import http from 'http';
 import { SocketServer } from './socket.server';
+import { socketAuthMiddleware } from './middlewares/socket.auth.middleware';
 
 class Server {
   private readonly PORT: number;
@@ -20,9 +21,10 @@ class Server {
       cors: {
         origin: '*', // Allow all origins for now, adjust as needed
         methods: ['GET', 'POST'],
+        credentials: true,
       },
     });
-
+    this.io.use(socketAuthMiddleware);
     // Handle uncaught exceptions
     this.setupExceptionHandling();
     this.setupSocketIO();
@@ -53,7 +55,7 @@ class Server {
 
   private setupSocketIO(): void {
     // Initialize socket handlers
-    SocketServer.initializeSocket(this.io);
+    SocketServer.getInstance(this.io);
   }
 
   public async start(): Promise<void> {
