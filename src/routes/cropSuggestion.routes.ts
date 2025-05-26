@@ -5,7 +5,7 @@ import { CropSuggestionController } from '../controllers/cropSuggestion.controll
 import { CropSuggestionValidation } from '../validations/cropSuggestion.validation';
 
 export class CropSuggestionRouter {
-  public router: Router;
+  private router: Router;
 
   constructor() {
     this.router = Router();
@@ -20,6 +20,9 @@ export class CropSuggestionRouter {
       CropSuggestionController.generateCropSuggestion
     );
   }
+  public getRouter(): Router {
+    return this.router;
+  }
 }
 
-export const cropSuggestionRouter = new CropSuggestionRouter().router;
+export const cropSuggestionRouter = new CropSuggestionRouter().getRouter();
