@@ -13,7 +13,7 @@ export class CropSuggestionController {
   public static async generateCropSuggestion(
     req: Request,
     res: Response,
-    next: NextFunction
+    _next: NextFunction
   ): Promise<void> {
     try {
       const userId = req.user?._id;

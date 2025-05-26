@@ -3,6 +3,7 @@ import { DiseaseDetectionController } from '../controllers/diseaseDetection.cont
 import { DiseaseDetectionValidation } from '../validations/diseaseDetection.validation';
 import { FileUploadUtil } from '../utils/multer.util';
 import { ValidationMiddleware } from '../middlewares/validation.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 /**
  * @class DiseaseDetectionRoutes
@@ -31,6 +32,13 @@ export class DiseaseDetectionRoutes {
   private initializeRoutes(): void {
     this.router.post(
       '/disease-detection',
+
+      /**
+       * Middleware 0: Authentication middleware
+       * - Ensures user is authenticated before proceeding
+       * - If not authenticated, returns 401 Unauthorized
+       */
+      authMiddleware,
 
       /**
        * Middleware 1: Upload single image file from field named 'image'

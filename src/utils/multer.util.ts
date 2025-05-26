@@ -141,7 +141,12 @@ export class FileUploadUtil {
     const filePath = path.isAbsolute(filenameOrPath)
       ? filenameOrPath
       : path.join(this.uploadDir, filenameOrPath);
+    const normalizedPath = path.normalize(filePath);
 
+    // Make sure it's inside uploadDir to prevent path traversal
+    if (!normalizedPath.startsWith(this.uploadDir)) {
+      throw new FileUploadError('Unauthorized file deletion attempt');
+    }
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       return true;
