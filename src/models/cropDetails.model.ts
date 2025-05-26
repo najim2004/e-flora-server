@@ -145,8 +145,6 @@ cropDetailsSchema.pre('save', async function (next) {
   }
 });
 
-cropDetailsSchema.index({ slug: 1 }, { unique: true });
-
 // Fixed model export
 export const CropDetails =
   models.CropDetails || model<ICropDetails>('CropDetails', cropDetailsSchema);

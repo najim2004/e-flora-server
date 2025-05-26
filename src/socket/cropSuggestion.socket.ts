@@ -29,7 +29,7 @@ export class CropSuggestionSocketHandler {
    */
   constructor(io: SocketIOServer) {
     this.io = io;
-    this.logger = new Logger('CropSuggestionSocketHandler');
+    this.logger =  Logger.getInstance('CropSuggestionSocketHandler');
   }
 
   /**
@@ -45,6 +45,9 @@ export class CropSuggestionSocketHandler {
     // Automatically join the user's dedicated room when they connect.
     socket.join(userRoom);
     this.logger.info(`User ${userId} joined room: ${userRoom} on connection.`);
+
+    socket.removeAllListeners('leaveCropSuggestionRoom');
+    socket.removeAllListeners('joinCropSuggestionRoom');
 
     // Handler for a client explicitly leaving the crop suggestion room.
     socket.on('leaveCropSuggestionRoom', () => {

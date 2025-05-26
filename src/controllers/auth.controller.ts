@@ -5,7 +5,7 @@ import { BadRequestError } from '../utils/errors';
 
 export class AuthController {
   private static authService = new AuthService();
-  private static logger = new Logger('AuthController');
+  private static logger = Logger.getInstance('AuthController');
 
   static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

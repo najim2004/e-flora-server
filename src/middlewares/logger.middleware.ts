@@ -16,7 +16,7 @@ morgan.token('body', (req: Request) => {
 const morganFormat = ':method :url :status :res[content-length] - :response-time ms :body';
 
 export class LoggerMiddleware {
-  private static loggerInstance = new Logger('LoggerMiddleware');
+  private static loggerInstance = Logger.getInstance('LoggerMiddleware');
 
   // Morgan HTTP logger middleware
   public static morganLogger = morgan(morganFormat, {
@@ -29,7 +29,7 @@ export class LoggerMiddleware {
 
   // Custom request tracking middleware
   public static requestTracker(req: Request, res: Response, next: NextFunction): void {
-    const logger = new Logger('RequestTracker');
+    const logger = Logger.getInstance('RequestTracker');
 
     req.headers['x-request-id'] =
       req.headers['x-request-id'] || `req-${Date.now()}-${Math.floor(Math.random() * 10000)}`;

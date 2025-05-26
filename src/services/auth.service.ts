@@ -8,7 +8,7 @@ import { RegCredentials, LoginCredentials, AuthResponse, TokenPayload } from '..
 export class AuthService {
   private readonly JWT_SECRET: string = process.env.JWT_SECRET || 'your-secret-key';
   private readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-  private logger = new Logger('AuthService');
+  private logger = Logger.getInstance('AuthService');
   private userModel = User;
 
   public async register(userData: RegCredentials): Promise<boolean> {

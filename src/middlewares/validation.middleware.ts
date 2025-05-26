@@ -4,7 +4,7 @@ import { BadRequestError } from '../utils/errors';
 import { Logger } from '../utils/logger';
 
 export class ValidationMiddleware {
-  private static logger = new Logger('ValidationMiddleware');
+  private static logger = Logger.getInstance('ValidationMiddleware');
   /**
    * Validates request body against provided schema
    * @param schema - Joi validation schema

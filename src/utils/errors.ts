@@ -51,7 +51,7 @@ export class InternalServerError extends HttpError {
 }
 
 export class ErrorHandler {
-  private static readonly logger = new Logger('ErrorHandler');
+  private static readonly logger = Logger.getInstance('ErrorHandler');
 
   public static handleErrors = (
     error: Error,

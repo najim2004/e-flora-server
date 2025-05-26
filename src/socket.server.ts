@@ -6,7 +6,7 @@ import { AuthenticatedSocket } from './middlewares/socket.auth.middleware';
 export class SocketServer {
   private static instance: SocketServer;
   private io: SocketIOServer;
-  private logger = new Logger('SocketServer');
+  private logger =Logger.getInstance('SocketServer');
 
   // Socket handler instances
   private cropSuggestionSocketHandler: CropSuggestionSocketHandler;

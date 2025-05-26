@@ -15,7 +15,7 @@ dotenv.config();
 
 export class App {
   public app: Application;
-  private logger = new Logger('App');
+  private logger = Logger.getInstance('App');
 
   constructor() {
     this.app = express();
