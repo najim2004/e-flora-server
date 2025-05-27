@@ -7,6 +7,7 @@ import { DiseaseDetectionPrompt } from '../prompts/diseaseDetection.prompt';
 import GeminiUtils from '../utils/gemini.utils';
 import { FileUploadUtil } from '../utils/multer.util';
 import { PipelineStage } from 'mongoose';
+import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.interface';
 
 export class DiseaseDetectionService {
   private imageKitUtil: ImageKitUtil;
@@ -32,21 +33,37 @@ export class DiseaseDetectionService {
     try {
       const existingCheckWithCropName = await this.existingCheckWithCropName(input.cropName);
       if (existingCheckWithCropName) {
-        const imageUploadResponse = await this.uploadImage(input.image);
-        const isCreatedNewHistory = await this.diseaseDetectionModelHistory.create({
+        const _newHistory = await this.createNewHistory({
           userId: input.userId,
           cropName: input.cropName,
           description: input.description,
-          detectedDisease: {
-            status: 'success',
-            id: existingCheckWithCropName._id,
-          },
-          image: imageUploadResponse,
+          image: input.image,
+          detectedDiseaseId: existingCheckWithCropName._id,
         });
-        if (!isCreatedNewHistory) {
-          this.imageKitUtil.deleteImage(imageUploadResponse.id);
-          throw new Error('Failed to create disease detection history');
-        }
+        return;
+      }
+
+      const { diseaseName, embedded } = await this.detectDiseaseAndMakeNewEmbedding(
+        input.cropName,
+        input.image,
+        input.description
+      );
+      if (!embedded || !diseaseName || embedded.length === 0) {
+        throw new Error('Failed to detect disease or generate embedding');
+      }
+
+      const existingCheckWithEmbeddedData = await this.existingCheckWithEmbeddedData(
+        diseaseName,
+        embedded
+      );
+      if (existingCheckWithEmbeddedData) {
+        const _newHistory = await this.createNewHistory({
+          userId: input.userId,
+          cropName: input.cropName,
+          description: input.description,
+          image: input.image,
+          detectedDiseaseId: existingCheckWithEmbeddedData._id,
+        });
         return;
       }
     } catch (error) {
@@ -91,11 +108,11 @@ export class DiseaseDetectionService {
     }
   }
 
-  private async existingCheckWithEmbeddedData(
+  private async detectDiseaseAndMakeNewEmbedding(
     cropName: string,
     image: Express.Multer.File,
     description?: string
-  ): Promise<OutputDetectDisease | null> {
+  ): Promise<{ diseaseName: string; embedded: number[] }> {
     try {
       const prompt = DiseaseDetectionService.prompts.getDiseaseNameGettingPrompt(
         cropName,
@@ -110,19 +127,33 @@ export class DiseaseDetectionService {
       } else if (detectedDiseaseName === 'NO_DISEASE_DETECTED') {
         throw new Error('NO_DISEASE_DETECTED');
       }
+
+      const generatedEmbedding = await this.gemini.generateEmbedding(detectedDiseaseName);
+      if (!generatedEmbedding || generatedEmbedding.length === 0) {
+        throw new Error('Failed to generate embedding');
+      }
+      return { diseaseName: detectedDiseaseName, embedded: generatedEmbedding };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async existingCheckWithEmbeddedData(
+    diseaseName: string,
+    embedded: number[]
+  ): Promise<OutputDetectDisease | null> {
+    try {
       const allDetectedDiseaseWithRelatedThisKeyWord =
-        await DiseaseDetectionService.search(detectedDiseaseName);
+        await DiseaseDetectionService.search(diseaseName);
       if (allDetectedDiseaseWithRelatedThisKeyWord.length > 0) {
-        const generatedEmbedded = await this.gemini.generateEmbedding(detectedDiseaseName);
-        const matchedDisease = DiseaseDetectionService.findBestMatch(
+        const bestMatchedDisease = DiseaseDetectionService.findBestMatch(
           allDetectedDiseaseWithRelatedThisKeyWord,
-          generatedEmbedded
+          embedded
         );
-        return matchedDisease;
+        return bestMatchedDisease;
       }
       return null;
     } catch (error) {
-      this.logger.logError(error as Error, 'Error checking disease detection with embedded data');
       throw error;
     }
   }
@@ -237,6 +268,40 @@ export class DiseaseDetectionService {
       };
     } catch (error) {
       this.logger.logError(error as Error, 'Error uploading image');
+      throw error;
+    }
+  }
+
+  private async createNewHistory(
+    input: InputDetectDisease & {
+      image: Express.Multer.File;
+      detectedDiseaseId: string;
+    }
+  ): Promise<Pick<IDiseaseDetectionHistory, 'userId' | 'cropName' | 'description' | 'image'>> {
+    let uploadedImageData;
+    try {
+      uploadedImageData = await this.uploadImage(input.image);
+      if (!uploadedImageData.url || !uploadedImageData.id)
+        throw new Error('Failed to upload image');
+      const isCreatedNewHistory = (await this.diseaseDetectionModelHistory.create({
+        userId: input.userId,
+        cropName: input.cropName,
+        description: input.description,
+        detectedDisease: {
+          status: 'success',
+          id: input.detectedDiseaseId,
+        },
+        image: uploadedImageData,
+      })) as IDiseaseDetectionHistory;
+      if (!isCreatedNewHistory) throw new Error('Failed to create disease history');
+      return {
+        userId: isCreatedNewHistory.userId,
+        cropName: isCreatedNewHistory.cropName,
+        description: isCreatedNewHistory.description,
+        image: isCreatedNewHistory.image,
+      };
+    } catch (error) {
+      if (uploadedImageData?.id) this.imageKitUtil.deleteImage(uploadedImageData?.id);
       throw error;
     }
   }
