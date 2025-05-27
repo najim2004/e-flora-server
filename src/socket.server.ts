@@ -2,20 +2,23 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Logger } from './utils/logger';
 import { CropSuggestionSocketHandler } from './socket/cropSuggestion.socket';
 import { AuthenticatedSocket } from './middlewares/socket.auth.middleware';
+import { DiseaseDetectionSocketHandler } from './socket/diseaseDetection.socket';
 
 export class SocketServer {
   private static instance: SocketServer;
   private io: SocketIOServer;
-  private logger =Logger.getInstance('SocketServer');
+  private logger = Logger.getInstance('SocketServer');
 
   // Socket handler instances
   private cropSuggestionSocketHandler: CropSuggestionSocketHandler;
+  private diseaseDetectionHandler: DiseaseDetectionSocketHandler;
 
   private constructor(io: SocketIOServer) {
     this.io = io;
 
     // Initialize handler classes, inject io
     this.cropSuggestionSocketHandler = new CropSuggestionSocketHandler(io);
+    this.diseaseDetectionHandler = new DiseaseDetectionSocketHandler(io);
 
     this.initialize();
   }
@@ -41,6 +44,7 @@ export class SocketServer {
 
       // Register handlers per socket connection
       this.cropSuggestionSocketHandler.registerSocketHandlers(authSocket);
+      this.diseaseDetectionHandler.registerSocketHandlers(authSocket);
 
       authSocket.on('disconnect', () => {
         this.logger.info(`👋 User disconnected: ${authSocket.id}`);
@@ -60,6 +64,9 @@ export class SocketServer {
   // Public getters for socket modules (optional)
   public getCropSuggestionSocketHandler(): CropSuggestionSocketHandler {
     return this.cropSuggestionSocketHandler;
+  }
+  public getDiseaseDetectionSocketHandler(): DiseaseDetectionSocketHandler {
+    return this.diseaseDetectionHandler;
   }
   // Similarly you can add getters for other sockets if needed
 }

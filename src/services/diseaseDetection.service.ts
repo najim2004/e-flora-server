@@ -66,6 +66,26 @@ export class DiseaseDetectionService {
         });
         return;
       }
+      const newDetails = this.generateFullDetailsOfNewDetectedDisease(
+        diseaseName,
+        input.cropName,
+        input.description
+      );
+      const savedNewDetails = await this.diseaseDetectionModel.create({
+        ...newDetails,
+        embedded,
+      });
+      if (savedNewDetails) {
+        const _newHistory = await this.createNewHistory({
+          userId: input.userId,
+          cropName: input.cropName,
+          description: input.description,
+          image: input.image,
+          detectedDiseaseId: savedNewDetails._id,
+        });
+        return;
+      }
+      throw new Error('Fully failed to detect disease');
     } catch (error) {
       console.log(error);
     }
@@ -283,6 +303,7 @@ export class DiseaseDetectionService {
       uploadedImageData = await this.uploadImage(input.image);
       if (!uploadedImageData.url || !uploadedImageData.id)
         throw new Error('Failed to upload image');
+      this.uploadUtil.deleteFile(input.image.path || input.image.filename);
       const isCreatedNewHistory = (await this.diseaseDetectionModelHistory.create({
         userId: input.userId,
         cropName: input.cropName,
@@ -302,6 +323,26 @@ export class DiseaseDetectionService {
       };
     } catch (error) {
       if (uploadedImageData?.id) this.imageKitUtil.deleteImage(uploadedImageData?.id);
+      throw error;
+    }
+  }
+
+  private async generateFullDetailsOfNewDetectedDisease(
+    diseaseName: string,
+    cropName: string,
+    description?: string
+  ): Promise<OutputDetectDisease> {
+    try {
+      const prompt = DiseaseDetectionPrompt.getNewDiseaseDetectionGeneratingPrompt(
+        diseaseName,
+        cropName,
+        description
+      );
+      const newDetails = await this.gemini.generateResponse(prompt);
+      if (!newDetails) throw new Error('Failed to generate disease details');
+      const parsedData = JSON.parse(newDetails);
+      return parsedData;
+    } catch (error) {
       throw error;
     }
   }
