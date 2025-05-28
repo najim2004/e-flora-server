@@ -55,7 +55,7 @@ class Server {
 
   private setupSocketIO(): void {
     // Initialize socket handlers
-    SocketServer.getInstance(this.io);
+    SocketServer.getInstance().initialize(this.io);
   }
 
   public async start(): Promise<void> {

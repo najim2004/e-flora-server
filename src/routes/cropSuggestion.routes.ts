@@ -13,7 +13,7 @@ export class CropSuggestionRouter {
   }
 
   private initializeRoutes(): void {
-    this.router.get(
+    this.router.post(
       '/crop-suggestion',
       authMiddleware,
       ValidationMiddleware.validateQuery(CropSuggestionValidation.cropSuggestion),

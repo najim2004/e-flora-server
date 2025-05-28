@@ -6,45 +6,57 @@ import { DiseaseDetectionSocketHandler } from './socket/diseaseDetection.socket'
 
 export class SocketServer {
   private static instance: SocketServer;
-  private io: SocketIOServer;
+  private io: SocketIOServer | null = null;
   private logger = Logger.getInstance('SocketServer');
+  private isInitialized = false;
 
   // Socket handler instances
-  private cropSuggestionSocketHandler: CropSuggestionSocketHandler;
-  private diseaseDetectionHandler: DiseaseDetectionSocketHandler;
+  private cropSuggestionSocketHandler: CropSuggestionSocketHandler | null = null;
+  private diseaseDetectionHandler: DiseaseDetectionSocketHandler | null = null;
 
-  private constructor(io: SocketIOServer) {
-    this.io = io;
-
-    // Initialize handler classes, inject io
-    this.cropSuggestionSocketHandler = new CropSuggestionSocketHandler(io);
-    this.diseaseDetectionHandler = new DiseaseDetectionSocketHandler(io);
-
-    this.initialize();
+  private constructor() {
+    // Empty constructor for singleton
   }
 
   // Singleton getInstance method
-  public static getInstance(io?: SocketIOServer): SocketServer {
-    if (!SocketServer.instance && !io) {
-      throw new Error('Socket.IO server instance is required for first-time initialization.');
+  public static getInstance(): SocketServer {
+    if (!SocketServer.instance) {
+      SocketServer.instance = new SocketServer();
     }
-
-    if (!SocketServer.instance && io) {
-      SocketServer.instance = new SocketServer(io);
-    }
-
-    return SocketServer.instance!;
+    return SocketServer.instance;
   }
 
-  private initialize(): void {
+  // Initialize method to be called when Socket.IO server is ready
+  public initialize(io: SocketIOServer): void {
+    if (this.isInitialized) {
+      this.logger.warn('Socket server already initialized');
+      return;
+    }
+
+    this.io = io;
+
+    // Initialize handler classes
+    this.cropSuggestionSocketHandler = new CropSuggestionSocketHandler(io);
+    this.diseaseDetectionHandler = new DiseaseDetectionSocketHandler(io);
+
+    this.setupSocketHandlers();
+    this.isInitialized = true;
+    this.logger.info('Socket server initialized successfully');
+  }
+
+  private setupSocketHandlers(): void {
+    if (!this.io) {
+      throw new Error('Socket.IO server not initialized');
+    }
+
     this.io.on('connection', ((socket: Socket) => {
       // Type assertion since we know the middleware has added userId
       const authSocket = socket as AuthenticatedSocket;
       this.logger.info(`👤 User connected: ${authSocket.id}`);
 
       // Register handlers per socket connection
-      this.cropSuggestionSocketHandler.registerSocketHandlers(authSocket);
-      this.diseaseDetectionHandler.registerSocketHandlers(authSocket);
+      this.cropSuggestionSocketHandler?.registerSocketHandlers(authSocket);
+      this.diseaseDetectionHandler?.registerSocketHandlers(authSocket);
 
       authSocket.on('disconnect', () => {
         this.logger.info(`👋 User disconnected: ${authSocket.id}`);
@@ -52,21 +64,41 @@ export class SocketServer {
 
       authSocket.on('error', error => {
         this.logger.logError(error, 'SocketServer');
+        
+        authSocket.emit('global:error', {
+          error: 'A server error occurred. Please try again later.',
+          details: error?.message || 'Unknown error',
+          timestamp: new Date(),
+        });
       });
     }) as (socket: Socket) => void);
   }
 
   // Public accessor for io instance
   public getIO(): SocketIOServer {
+    if (!this.io) {
+      throw new Error('Socket.IO server not initialized. Call initialize() first.');
+    }
     return this.io;
   }
 
-  // Public getters for socket modules (optional)
+  // Check if initialized
+  public isReady(): boolean {
+    return this.isInitialized && this.io !== null;
+  }
+
+  // Public getters for socket modules
   public getCropSuggestionSocketHandler(): CropSuggestionSocketHandler {
+    if (!this.cropSuggestionSocketHandler) {
+      throw new Error('Socket server not initialized. Call initialize() first.');
+    }
     return this.cropSuggestionSocketHandler;
   }
-  public getDiseaseDetectionSocketHandler(): DiseaseDetectionSocketHandler {
+
+  public diseaseDetection(): DiseaseDetectionSocketHandler {
+    if (!this.diseaseDetectionHandler) {
+      throw new Error('Socket server not initialized. Call initialize() first.');
+    }
     return this.diseaseDetectionHandler;
   }
-  // Similarly you can add getters for other sockets if needed
 }

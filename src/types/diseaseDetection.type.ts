@@ -10,7 +10,7 @@ export interface InputDetectDisease
 export interface OutputDetectDisease
   extends Pick<
     IDiseaseDetection,
-    'cropName' | 'description' | 'symptoms' | 'treatment' | 'causes' | 'preventiveTips'
+    'cropName' | 'description' | 'symptoms' | 'treatment' | 'causes' | 'preventiveTips'|"diseaseName"
   > {
   _id: string;
 }

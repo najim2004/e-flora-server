@@ -71,3 +71,5 @@ export class ImageKitUtil {
     return { success: true };
   }
 }
+
+export const imageKitUtil= new ImageKitUtil()

@@ -82,3 +82,5 @@ class GeminiUtils {
 }
 
 export default GeminiUtils;
+
+export const gemini = new GeminiUtils();

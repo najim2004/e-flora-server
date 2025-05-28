@@ -3,143 +3,151 @@ import { Logger } from '../utils/logger';
 import { ICropRecommendations } from '../interfaces/cropRecommendations.interface';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
 
-/**
- * Defines the structure for broadcasting crop suggestion progress updates.
- */
-export interface CropSuggestionProgressUpdate {
-  userId: string;
-  status: 'started' | 'processing' | 'completed' | 'failed';
-  progress: number; // Percentage of completion (0-100)
-  message?: string; // Optional descriptive message about the current stage
+export enum CropSuggestionStatus {
+  STARTED = 'started',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
 }
 
+export interface CropSuggestionProgressUpdate {
+  userId: string;
+  status: CropSuggestionStatus;
+  progress: number;
+  message?: string;
+}
 
-/**
- * Manages WebSocket communication for crop suggestion processes.
- * This class handles real-time updates for users, including progress, final recommendations,
- * and details about individual crops.
- */
+export interface CropDetailsUpdate {
+  success: boolean;
+  slug: string | null;
+  scientificName: string;
+  timestamp: Date;
+}
+
 export class CropSuggestionSocketHandler {
-  private io: SocketIOServer;
-  private logger: Logger;
+  private static readonly ROOM_PREFIX = 'user';
+  private static readonly ROOM_SUFFIX = 'crop-suggestion';
 
-  /**
-   * Constructs a new CropSuggestionSocketHandler.
-   * @param io The Socket.IO server instance.
-   */
+  private readonly io: SocketIOServer;
+  private readonly logger: Logger;
+
   constructor(io: SocketIOServer) {
     this.io = io;
-    this.logger =  Logger.getInstance('CropSuggestionSocketHandler');
+    this.logger = Logger.getInstance('CropSuggestionSocketHandler');
   }
 
-  /**
-   * Registers Socket.IO event handlers for a new client connection.
-   * Users are automatically joined into a room specific to their `userId` upon connection.
-   *
-   * @param socket The authenticated Socket.IO client instance.
-   */
   public registerSocketHandlers(socket: AuthenticatedSocket): void {
-    const userId = socket.userId;
-    const userRoom = this.getUserRoom(userId);
+    try {
+      const userId = socket.userId;
+      const userRoom = this.getUserRoom(userId);
 
-    // Automatically join the user's dedicated room when they connect.
-    socket.join(userRoom);
-    this.logger.info(`User ${userId} joined room: ${userRoom} on connection.`);
-
-    socket.removeAllListeners('leaveCropSuggestionRoom');
-    socket.removeAllListeners('joinCropSuggestionRoom');
-
-    // Handler for a client explicitly leaving the crop suggestion room.
-    socket.on('leaveCropSuggestionRoom', () => {
-      socket.leave(userRoom);
-      this.logger.info(`User ${userId} explicitly left crop suggestion room: ${userRoom}.`);
-    });
-
-    // Handler for a client explicitly rejoining the crop suggestion room.
-    socket.on('joinCropSuggestionRoom', () => {
-      socket.join(userRoom);
-      this.logger.info(`User ${userId} explicitly rejoined crop suggestion room: ${userRoom}.`);
-    });
-  }
-
-  /**
-   * Emits progress updates to a specific user's room.
-   * This keeps the client informed about the status and progression of the crop suggestion process.
-   *
-   * @param data The progress update data.
-   */
-  public emitProgressUpdate(data: CropSuggestionProgressUpdate): void {
-    const userRoom = this.getUserRoom(data.userId);
-    this.io.to(userRoom).emit('cropSuggestionProgressUpdate', {
-      status: data.status,
-      progress: data.progress,
-      message: data.message,
-      timestamp: new Date(), // Add a timestamp for client-side timing/logging
-    });
-
-    this.logger.info(
-      `Emitting progress to room: ${userRoom} | Status: ${data.status} | Progress: ${data.progress}%`
-    );
-    if (data.message) {
-      this.logger.debug(`Progress message for ${userRoom}: ${data.message}`);
+      this.cleanupExistingListeners(socket);
+      this.joinUserRoom(socket, userRoom);
+      this.setupEventListeners(socket, userRoom);
+    } catch (error) {
+      this.logger.error(
+        `Error in registerSocketHandlers: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  /**
-   * Sends the final crop recommendations result to a specific user's room.
-   * This is typically the last update after the core recommendations are generated and saved.
-   *
-   * @param userId The ID of the user to send recommendations to.
-   * @param recommendationData The crop recommendation data (excluding full crop details).
-   */
-  public sendFinalRecommendations(
-    userId: string,
-    recommendationData: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>
-  ): void {
-    const userRoom = this.getUserRoom(userId);
-    this.io.to(userRoom).emit('finalCropRecommendations', {
-      ...recommendationData,
-      timestamp: new Date(), // Add a timestamp
-    });
+  public async emitProgressUpdate(data: CropSuggestionProgressUpdate): Promise<void> {
+    try {
+      const userRoom = this.getUserRoom(data.userId);
+      const updatePayload = {
+        status: data.status,
+        progress: this.validateProgress(data.progress),
+        message: data.message,
+        timestamp: new Date(),
+      };
 
-    this.logger.info(
-      `Emitting final crop recommendations for user: ${userId} in room: ${userRoom}.`
-    );
-    this.logger.debug(`Recommendation data: ${JSON.stringify(recommendationData._id)}`); // Log ID, not full data
+      await this.io.to(userRoom).emit('cropSuggestionProgressUpdate', updatePayload);
+      this.logProgressUpdate(userRoom, data);
+    } catch (error) {
+      this.logger.error(
+        `Error in emitProgressUpdate: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
-  /**
-   * Emits the details (slug and scientific name) for an individual crop to the user.
-   * This allows the client to dynamically update details for each recommended crop as they become available.
-   *
-   * @param userId The ID of the user.
-   * @param cropSlug The slug of the crop details, or null if generation failed.
-   * @param scientificName The scientific name of the crop.
-   */
-  public emitCropDetailsUpdate(
+  public async sendFinalRecommendations(
+    userId: string,
+    recommendationData: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>
+  ): Promise<void> {
+    try {
+      const userRoom = this.getUserRoom(userId);
+      const payload = {
+        ...recommendationData,
+        timestamp: new Date(),
+      };
+
+      await this.io.to(userRoom).emit('finalCropRecommendations', payload);
+      this.logger.info(`Final recommendations sent to user ${userId} in room ${userRoom}`);
+    } catch (error) {
+      this.logger.error(
+        `Error sending final recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  public async emitCropDetailsUpdate(
     userId: string,
     cropSlug: string | null,
     scientificName: string
-  ): void {
-    const userRoom = this.getUserRoom(userId);
-    this.io.to(userRoom).emit('individualCropDetailsUpdate', {
-      success: !!cropSlug, // Boolean indicating if details were successfully retrieved/generated
-      slug: cropSlug,
-      scientificName: scientificName,
-      timestamp: new Date(), // Add a timestamp
-    });
+  ): Promise<void> {
+    try {
+      const userRoom = this.getUserRoom(userId);
+      const updatePayload: CropDetailsUpdate = {
+        success: Boolean(cropSlug),
+        slug: cropSlug,
+        scientificName,
+        timestamp: new Date(),
+      };
 
-    this.logger.info(
-      `Emitting details update for ${scientificName} to user: ${userId}. Success: ${!!cropSlug}`
-    );
+      await this.io.to(userRoom).emit('individualCropDetailsUpdate', updatePayload);
+      this.logger.debug(`Crop details update sent for ${scientificName} to user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Error emitting crop details: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
-  /**
-   * Generates a unique room name for a given user ID.
-   * @param userId The ID of the user.
-   * @returns The room name string.
-   */
   private getUserRoom(userId: string): string {
-    return `user:${userId}:crop-suggestion`;
+    if (!userId) throw new Error('User ID is required');
+    return `${CropSuggestionSocketHandler.ROOM_PREFIX}:${userId}:${CropSuggestionSocketHandler.ROOM_SUFFIX}`;
+  }
+
+  private cleanupExistingListeners(socket: AuthenticatedSocket): void {
+    socket.removeAllListeners('leaveCropSuggestionRoom');
+    socket.removeAllListeners('joinCropSuggestionRoom');
+  }
+
+  private joinUserRoom(socket: AuthenticatedSocket, userRoom: string): void {
+    socket.join(userRoom);
+    this.logger.info(`User ${socket.userId} joined room: ${userRoom}`);
+  }
+
+  private setupEventListeners(socket: AuthenticatedSocket, userRoom: string): void {
+    socket.on('leaveCropSuggestionRoom', () => {
+      socket.leave(userRoom);
+      this.logger.info(`User ${socket.userId} left room: ${userRoom}`);
+    });
+
+    socket.on('joinCropSuggestionRoom', () => {
+      socket.join(userRoom);
+      this.logger.info(`User ${socket.userId} rejoined room: ${userRoom}`);
+    });
+  }
+
+  private validateProgress(progress: number): number {
+    return Math.min(Math.max(0, progress), 100);
+  }
+
+  private logProgressUpdate(userRoom: string, data: CropSuggestionProgressUpdate): void {
+    this.logger.info(`Progress update in room ${userRoom}: ${data.status} (${data.progress}%)`);
+    if (data.message) {
+      this.logger.debug(`Message: ${data.message}`);
+    }
   }
 }

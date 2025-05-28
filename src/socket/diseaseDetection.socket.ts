@@ -2,6 +2,16 @@ import { Server as SocketIOServer } from 'socket.io';
 import { Logger } from '../utils/logger';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
 
+// Constants
+const SOCKET_EVENTS = {
+  LEAVE_ROOM: 'leaveDiseaseDetectionRoom',
+  JOIN_ROOM: 'joinDiseaseDetectionRoom',
+  PROGRESS_UPDATE: 'diseaseDetection:progressUpdate',
+  RESULT: 'diseaseDetection:result',
+  ERROR: 'diseaseDetection:error',
+} as const;
+
+// Types
 export type DiseaseDetectionStatus =
   | 'initiated'
   | 'analyzing'
@@ -11,88 +21,126 @@ export type DiseaseDetectionStatus =
   | 'failed';
 
 export interface DiseaseDetectionProgressPayload {
-  userId: string;
-  status: DiseaseDetectionStatus;
-  progress: number; // percentage from 0 to 100
-  message?: string;
+  readonly userId: string;
+  readonly status: DiseaseDetectionStatus;
+  readonly progress: number;
+  readonly message?: string;
 }
 
 export interface DiseaseDetectionResultPayload {
-  cropName: string;
-  diseaseName: string;
-  description: string;
-  symptoms: string[];
-  treatment: string[];
-  causes: string[];
-  preventiveTips: string[];
+  readonly cropName: string;
+  readonly diseaseName: string;
+  readonly description: string;
+  readonly symptoms: readonly string[];
+  readonly treatment: readonly string[];
+  readonly causes: readonly string[];
+  readonly preventiveTips: readonly string[];
 }
 
 export class DiseaseDetectionSocketHandler {
-  private io: SocketIOServer;
-  private logger: Logger;
+  private readonly io: SocketIOServer;
+  private readonly logger: Logger;
 
   constructor(io: SocketIOServer) {
     this.io = io;
     this.logger = Logger.getInstance('DiseaseDetectionSocketHandler');
   }
 
+  /**
+   * Registers socket event handlers for a user
+   * @param socket Authenticated socket instance
+   */
   public registerSocketHandlers(socket: AuthenticatedSocket): void {
-    const userId = socket.userId;
+    const { userId } = socket;
     const userRoom = this.getUserRoom(userId);
 
-    socket.join(userRoom);
-    this.logger.info(`User ${userId} joined room: ${userRoom}`);
+    // Clean up existing listeners before adding new ones
+    this.cleanupExistingListeners(socket);
 
-    socket.removeAllListeners('leaveDiseaseDetectionRoom');
-    socket.removeAllListeners('joinDiseaseDetectionRoom');
+    // Join user to their room
+    this.joinUserToRoom(socket, userRoom);
 
-    socket.on('leaveDiseaseDetectionRoom', () => {
-      socket.leave(userRoom);
-      this.logger.info(`User ${userId} left room: ${userRoom}`);
-    });
-
-    socket.on('joinDiseaseDetectionRoom', () => {
-      socket.join(userRoom);
-      this.logger.info(`User ${userId} rejoined room: ${userRoom}`);
-    });
+    // Register event handlers
+    this.registerRoomEvents(socket, userRoom);
   }
 
+  /**
+   * Emits progress update to user's room
+   * @param data Progress update payload
+   */
   public emitProgressUpdate(data: DiseaseDetectionProgressPayload): void {
     const room = this.getUserRoom(data.userId);
-    this.io.to(room).emit('diseaseDetection:progressUpdate', {
-      status: data.status,
-      progress: data.progress,
-      message: data.message,
-      timestamp: new Date(),
-    });
+    const payload = {
+      ...data,
+      timestamp: new Date().toISOString(),
+    };
 
-    this.logger.info(`Progress [${data.status}] ${data.progress}% → ${room}`);
-    if (data.message) {
-      this.logger.debug(`Message: ${data.message}`);
-    }
+    this.io.to(room).emit(SOCKET_EVENTS.PROGRESS_UPDATE, payload);
+    this.logProgress(data, room);
   }
 
+  /**
+   * Emits final detection result to user's room
+   * @param userId User ID
+   * @param result Detection result payload
+   */
   public emitFinalResult(userId: string, result: DiseaseDetectionResultPayload): void {
     const room = this.getUserRoom(userId);
-    this.io.to(room).emit('diseaseDetection:result', {
+    const payload = {
       ...result,
-      timestamp: new Date(),
-    });
+      timestamp: new Date().toISOString(),
+    };
 
+    this.io.to(room).emit(SOCKET_EVENTS.RESULT, payload);
     this.logger.info(`Final disease detection result emitted to ${room}`);
   }
 
+  /**
+   * Emits error message to user's room
+   * @param userId User ID
+   * @param errorMessage Error message
+   */
   public emitError(userId: string, errorMessage: string): void {
     const room = this.getUserRoom(userId);
-    this.io.to(room).emit('diseaseDetection:error', {
+    const payload = {
       error: errorMessage,
-      timestamp: new Date(),
-    });
+      timestamp: new Date().toISOString(),
+    };
 
+    this.io.to(room).emit(SOCKET_EVENTS.ERROR, payload);
     this.logger.error(`Error sent to ${room}: ${errorMessage}`);
   }
 
   private getUserRoom(userId: string): string {
     return `user:${userId}:disease-detection`;
+  }
+
+  private cleanupExistingListeners(socket: AuthenticatedSocket): void {
+    socket.removeAllListeners(SOCKET_EVENTS.LEAVE_ROOM);
+    socket.removeAllListeners(SOCKET_EVENTS.JOIN_ROOM);
+  }
+
+  private joinUserToRoom(socket: AuthenticatedSocket, room: string): void {
+    socket.join(room);
+    this.logger.info(`User ${socket.userId} joined room: ${room}`);
+  }
+
+  private registerRoomEvents(socket: AuthenticatedSocket, room: string): void {
+    socket.on(SOCKET_EVENTS.LEAVE_ROOM, () => {
+      socket.leave(room);
+      this.logger.info(`User ${socket.userId} left room: ${room}`);
+    });
+
+    socket.on(SOCKET_EVENTS.JOIN_ROOM, () => {
+      socket.join(room);
+      this.logger.info(`User ${socket.userId} rejoined room: ${room}`);
+    });
+  }
+
+  private logProgress(data: DiseaseDetectionProgressPayload, room: string): void {
+    this.logger.info(`Progress [${data.status}] ${data.progress}% → ${room}`);
+    if (data.message) {
+      this.logger.debug(`Message: ${data.message}`);
+    }
   }
 }
