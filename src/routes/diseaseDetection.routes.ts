@@ -35,6 +35,16 @@ export class DiseaseDetectionRoutes {
       }),
       this.diseaseDetectionController.detectDisease
     );
+    this.router.get(
+      '/disease-detection/result/:id',
+      authMiddleware,
+      this.diseaseDetectionController.getSpecificDetectedDiseaseResult
+    );
+    this.router.post(
+      '/disease-detection/histories',
+      authMiddleware,
+      this.diseaseDetectionController.getUserDetectedDiseaseHistories
+    );
   }
 
   public getRouter(): Router {

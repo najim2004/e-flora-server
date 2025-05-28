@@ -2,16 +2,15 @@ import ImageKit from 'imagekit';
 import path from 'path';
 import fs from 'fs';
 
-
 /**
  * Interface representing the result of a successful image upload.
  */
 interface UploadResult {
-    fileId: string;
-    url: string;
-    name: string;
-    filePath: string;
-  }
+  fileId: string;
+  url: string;
+  name: string;
+  filePath: string;
+}
 
 export class ImageKitUtil {
   private imagekit: ImageKit;
@@ -72,4 +71,4 @@ export class ImageKitUtil {
   }
 }
 
-export const imageKitUtil= new ImageKitUtil()
+export const imageKitUtil = new ImageKitUtil();

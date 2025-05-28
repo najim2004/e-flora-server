@@ -1,6 +1,7 @@
-import { Document, ObjectId } from 'mongoose';
+import { ObjectId } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
-export interface IDiseaseDetectionHistory extends Document {
+export interface IDiseaseDetectionHistory extends CommonInMongoose {
   userId: ObjectId;
   cropName: string;
   description: string;

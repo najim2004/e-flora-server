@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import morgan from 'morgan';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 
 // Masked request body logging
 morgan.token('body', (req: Request) => {

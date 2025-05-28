@@ -6,9 +6,10 @@ import { CropSuggestionValidation } from '../validations/cropSuggestion.validati
 
 export class CropSuggestionRouter {
   private router: Router;
-
+  private readonly cropSuggestionController: CropSuggestionController;
   constructor() {
     this.router = Router();
+    this.cropSuggestionController = new CropSuggestionController();
     this.initializeRoutes();
   }
 
@@ -17,7 +18,7 @@ export class CropSuggestionRouter {
       '/crop-suggestion',
       authMiddleware,
       ValidationMiddleware.validateQuery(CropSuggestionValidation.cropSuggestion),
-      CropSuggestionController.generateCropSuggestion
+      this.cropSuggestionController.generateCropSuggestion
     );
   }
   public getRouter(): Router {

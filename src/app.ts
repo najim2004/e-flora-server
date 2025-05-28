@@ -7,7 +7,7 @@ import { authRouter } from './routes/auth.routes';
 import { userRouter } from './routes/user.routes';
 import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { ErrorHandler } from './utils/errors';
-import { Logger } from './utils/logger';
+import Logger from './utils/logger';
 import cookieParser from 'cookie-parser';
 import { cropSuggestionRouter } from './routes/cropSuggestion.routes';
 import { diseaseDetectionRouter } from './routes/diseaseDetection.routes';

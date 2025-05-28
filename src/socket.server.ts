@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Logger } from './utils/logger';
+import Logger from './utils/logger';
 import { CropSuggestionSocketHandler } from './socket/cropSuggestion.socket';
 import { AuthenticatedSocket } from './middlewares/socket.auth.middleware';
 import { DiseaseDetectionSocketHandler } from './socket/diseaseDetection.socket';
@@ -64,7 +64,7 @@ export class SocketServer {
 
       authSocket.on('error', error => {
         this.logger.logError(error, 'SocketServer');
-        
+
         authSocket.emit('global:error', {
           error: 'A server error occurred. Please try again later.',
           details: error?.message || 'Unknown error',
@@ -88,7 +88,7 @@ export class SocketServer {
   }
 
   // Public getters for socket modules
-  public getCropSuggestionSocketHandler(): CropSuggestionSocketHandler {
+  public cropSuggestion(): CropSuggestionSocketHandler {
     if (!this.cropSuggestionSocketHandler) {
       throw new Error('Socket server not initialized. Call initialize() first.');
     }

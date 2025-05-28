@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import { BadRequestError } from '../utils/errors';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 
 /**
  * ValidationMiddleware

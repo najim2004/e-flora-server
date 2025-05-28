@@ -23,10 +23,7 @@ function getTokenFromCookie(cookieHeader: string | undefined): string | null {
 }
 
 // Socket middleware function
-export function socketAuthMiddleware(
-  socket: Socket,
-  next: (err?: Error) => void
-): void {
+export function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void): void {
   try {
     const cookieHeader = socket.handshake.headers.cookie;
     const token = getTokenFromCookie(cookieHeader);
@@ -43,4 +40,3 @@ export function socketAuthMiddleware(
     return next(new Error('Authentication error: Invalid token'));
   }
 }
-

@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 import { UnauthorizedError } from '../utils/errors';
 
 export class UserController {
-  private static logger = Logger.getInstance('UserController');
+  private static logger = Logger.getInstance('User');
   public static async refreshUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Get user ID from the request

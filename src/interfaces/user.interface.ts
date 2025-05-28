@@ -65,8 +65,8 @@ export interface IUser extends Document {
   location: string;
   email: string;
   password: string;
-  profileImage:string;
-  bannerImage:string;
+  profileImage: string;
+  bannerImage: string;
   phoneNumber: string;
   gender: string;
   dateOfBirth: Date;

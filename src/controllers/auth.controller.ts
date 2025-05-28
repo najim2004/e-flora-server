@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 import { BadRequestError } from '../utils/errors';
 
 export class AuthController {
   private static authService = new AuthService();
-  private static logger = Logger.getInstance('AuthController');
+  private static logger = Logger.getInstance('Auth');
 
   static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

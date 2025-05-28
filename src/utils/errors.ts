@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { Logger } from './logger';
+import Logger from './logger';
 
 // Base custom error with status code
 export class HttpError extends Error {

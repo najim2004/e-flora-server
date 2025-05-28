@@ -11,7 +11,7 @@ export const notificationHandler = (io: SocketIOServer, socket: Socket) => {
     io.to(data.targetUserId).emit('newNotification', {
       type: data.type,
       content: data.content,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   });
 };

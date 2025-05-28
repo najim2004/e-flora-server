@@ -1,6 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
+import { DiseaseDetectionProgressPayload, DiseaseDetectionResultPayload } from '../types/diseaseDetection.type';
 
 // Constants
 const SOCKET_EVENTS = {
@@ -11,39 +12,13 @@ const SOCKET_EVENTS = {
   ERROR: 'diseaseDetection:error',
 } as const;
 
-// Types
-export type DiseaseDetectionStatus =
-  | 'initiated'
-  | 'analyzing'
-  | 'generatingData'
-  | 'savingToDB'
-  | 'completed'
-  | 'failed';
-
-export interface DiseaseDetectionProgressPayload {
-  readonly userId: string;
-  readonly status: DiseaseDetectionStatus;
-  readonly progress: number;
-  readonly message?: string;
-}
-
-export interface DiseaseDetectionResultPayload {
-  readonly cropName: string;
-  readonly diseaseName: string;
-  readonly description: string;
-  readonly symptoms: readonly string[];
-  readonly treatment: readonly string[];
-  readonly causes: readonly string[];
-  readonly preventiveTips: readonly string[];
-}
-
 export class DiseaseDetectionSocketHandler {
   private readonly io: SocketIOServer;
   private readonly logger: Logger;
 
   constructor(io: SocketIOServer) {
     this.io = io;
-    this.logger = Logger.getInstance('DiseaseDetectionSocketHandler');
+    this.logger = Logger.getInstance('DiseaseDetection');
   }
 
   /**

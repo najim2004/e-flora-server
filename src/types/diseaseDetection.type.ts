@@ -10,7 +10,37 @@ export interface InputDetectDisease
 export interface OutputDetectDisease
   extends Pick<
     IDiseaseDetection,
-    'cropName' | 'description' | 'symptoms' | 'treatment' | 'causes' | 'preventiveTips'|"diseaseName"
+    | 'cropName'
+    | 'description'
+    | 'symptoms'
+    | 'treatment'
+    | 'causes'
+    | 'preventiveTips'
+    | 'diseaseName'
   > {
   _id: string;
+}
+
+export type DiseaseDetectionStatus =
+  | 'initiated'
+  | 'analyzing'
+  | 'generatingData'
+  | 'savingToDB'
+  | 'completed'
+  | 'failed';
+
+export interface DiseaseDetectionProgressPayload {
+  readonly userId: string;
+  readonly status: DiseaseDetectionStatus;
+  readonly progress: number;
+  readonly message?: string;
+}
+
+export interface DiseaseDetectionResultPayload
+  extends Omit<
+    IDiseaseDetectionHistory,
+    'createdAt' | 'updatedAt' | 'detectedDisease' | '_id' | 'userId'
+  > {
+  _id: string;
+  diseaseDetails: OutputDetectDisease;
 }

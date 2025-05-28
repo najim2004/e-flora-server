@@ -5,14 +5,14 @@ import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
 import { CropSuggestionInput } from '../types/cropSuggestion.types';
 import GeminiUtils from '../utils/gemini.utils';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 import ngeohash from 'ngeohash';
 import { WeatherAverages, WeatherService } from '../utils/weather.utils';
 import { SocketServer } from '../socket.server';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 import mongoose, { Types } from 'mongoose';
-import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
+import { CropSuggestionStatus } from '../socket/cropSuggestion.socket';
 
 export class CropSuggestionService {
   private logger: Logger;
@@ -22,13 +22,13 @@ export class CropSuggestionService {
   private cropDetailsModel = CropDetails;
   private gemini = new GeminiUtils();
   private prompts = new CropSuggestionPrompts();
-  private cropSocket: CropSuggestionSocketHandler;
+  private socketHandler: SocketServer;
 
   constructor() {
     // Logger instance should ideally be managed as a singleton if it writes to files
     // Assuming Logger.getInstance() handles this correctly.
-    this.logger = Logger.getInstance('CropSuggestionService');
-    this.cropSocket = SocketServer.getInstance().getCropSuggestionSocketHandler();
+    this.logger = Logger.getInstance('CropSuggestion');
+    this.socketHandler = SocketServer.getInstance();
   }
 
   /**
@@ -42,7 +42,7 @@ export class CropSuggestionService {
    */
   public async generateCropSuggestion(input: CropSuggestionInput, userId: string): Promise<void> {
     const cacheKey = this.cacheKeyMaker(input);
-    this.emitProgress(userId, 'started', 10, 'Starting crop suggestion generation...');
+    this.emitProgress(userId, 'initiated', 10, 'Starting crop suggestion generation...');
     this.logger.info(`Initiating crop suggestion for user: ${userId}, with cacheKey: ${cacheKey}`);
 
     const existingRecommendation = await this.findSimilarityByCacheKey(cacheKey, userId);
@@ -51,18 +51,18 @@ export class CropSuggestionService {
         `Existing recommendation found for cacheKey: ${cacheKey}. Retrieving from cache.`
       );
       this.emitProgress(userId, 'completed', 100, 'Crop suggestions retrieved from cache.');
-      this.cropSocket.sendFinalRecommendations(userId, existingRecommendation);
+      this.socketHandler.cropSuggestion().sendFinalRecommendations(userId, existingRecommendation);
       return;
     }
     this.logger.info(
       `No existing recommendation found for cacheKey: ${cacheKey}. Generating new one.`
     );
 
-    this.emitProgress(userId, 'processing', 20, 'Fetching weather data...');
+    this.emitProgress(userId, 'analyzing', 20, 'Fetching weather data...');
     const weather = new WeatherService(input.location.latitude, input.location.longitude);
     const averages = await weather.getWeatherAverages(16);
     this.logger.debug(`Processed weather averages: ${JSON.stringify(averages)}`);
-    this.emitProgress(userId, 'processing', 40, 'Weather data fetched. Preparing AI prompt...');
+    this.emitProgress(userId, 'analyzing', 40, 'Weather data fetched. Preparing AI prompt...');
 
     let recommendedCrops: Pick<
       ICropRecommendations,
@@ -87,7 +87,7 @@ export class CropSuggestionService {
           { session }
         );
         this.logger.info(`Recommendations cached with key: ${cacheKey} within transaction.`);
-        this.emitProgress(userId, 'processing', 90, 'Data saved to cache. Committing changes...');
+        this.emitProgress(userId, 'savingToDB', 90, 'Data saved to cache. Committing changes...');
       }
 
       await session.commitTransaction();
@@ -118,7 +118,7 @@ export class CropSuggestionService {
     }
 
     if (recommendedCrops) {
-      this.cropSocket.sendFinalRecommendations(userId, recommendedCrops);
+      this.socketHandler.cropSuggestion().sendFinalRecommendations(userId, recommendedCrops);
       // Asynchronously generate crop details.
       this.generateCropDetailsSequentially(recommendedCrops, userId);
     }
@@ -140,7 +140,7 @@ export class CropSuggestionService {
     cacheKey: string,
     userId: string
   ): Promise<ICropRecommendations | null> {
-    this.emitProgress(userId, 'processing', 15, 'Checking user history...');
+    this.emitProgress(userId, 'initiated', 15, 'Checking user history...');
     const historyLookup = await this.findRecommendationInDB(
       this.cropSuggestionHistoryModel,
       {
@@ -152,7 +152,7 @@ export class CropSuggestionService {
     );
     if (historyLookup) return historyLookup;
 
-    this.emitProgress(userId, 'processing', 20, 'Checking global cache...');
+    this.emitProgress(userId, 'initiated', 20, 'Checking global cache...');
     const cacheLookup = await this.findRecommendationInDB(
       this.cropSuggestionCacheModel,
       { cacheKey, createdAt: { $gte: this.getDateXDaysAgo(1) } },
@@ -205,7 +205,7 @@ export class CropSuggestionService {
         );
         this.emitProgress(
           userId!,
-          'processing',
+          'generatingData',
           50 + tries * 10,
           `Generating recommendations (Attempt ${tries + 1})...`
         );
@@ -240,7 +240,7 @@ export class CropSuggestionService {
         );
         this.emitProgress(
           userId!,
-          'processing',
+          'savingToDB',
           70,
           'Recommendations generated and saved to history.'
         );
@@ -292,11 +292,9 @@ export class CropSuggestionService {
           crop.cropDetailsId = existingDetails._id;
           crop.detailsSlug = existingDetails.slug;
           isModified = true;
-          this.cropSocket.emitCropDetailsUpdate(
-            userId,
-            existingDetails.slug,
-            existingDetails.scientificName
-          );
+          this.socketHandler
+            .cropSuggestion()
+            .emitCropDetailsUpdate(userId, existingDetails.slug, existingDetails.scientificName);
           continue;
         }
 
@@ -315,18 +313,22 @@ export class CropSuggestionService {
           crop.cropDetailsId = detailsDbResponse._id;
           crop.detailsSlug = detailsDbResponse.slug;
           isModified = true;
-          this.cropSocket.emitCropDetailsUpdate(
-            userId,
-            detailsDbResponse.slug,
-            detailsDbResponse.scientificName
-          );
+          this.socketHandler
+            .cropSuggestion()
+            .emitCropDetailsUpdate(
+              userId,
+              detailsDbResponse.slug,
+              detailsDbResponse.scientificName
+            );
           this.logger.info(`Generated and saved details for ${crop.name}.`);
         }
       } catch (error) {
         this.logger.warn(
           `Failed to generate/save details for ${crop.name}. Error: ${(error as Error).message}`
         );
-        this.cropSocket.emitCropDetailsUpdate(userId, null, crop.scientificName);
+        this.socketHandler
+          .cropSuggestion()
+          .emitCropDetailsUpdate(userId, null, crop.scientificName);
       }
     }
 
@@ -343,7 +345,7 @@ export class CropSuggestionService {
           `Failed to update recommendations with details IDs/slugs for ID: ${cropRecommendations._id}. Error: ${(error as Error).message}`
         );
         updatedCrops.map(c =>
-          this.cropSocket.emitCropDetailsUpdate(userId, null, c.scientificName)
+          this.socketHandler.cropSuggestion().emitCropDetailsUpdate(userId, null, c.scientificName)
         );
       }
     } else {
@@ -380,11 +382,11 @@ export class CropSuggestionService {
    */
   private emitProgress(
     userId: string,
-    status: 'started' | 'processing' | 'completed' | 'failed',
+    status: CropSuggestionStatus,
     progress: number,
     message: string
   ): void {
-    this.cropSocket.emitProgressUpdate({ userId, status, progress, message });
+    this.socketHandler.cropSuggestion().emitProgressUpdate({ userId, status, progress, message });
   }
 
   /**

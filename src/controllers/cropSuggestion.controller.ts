@@ -1,16 +1,16 @@
 import { NextFunction, Request, Response } from 'express';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 import { UnauthorizedError } from '../utils/errors';
 import { CropSuggestionService } from '../services/cropSuggestion.service';
 
 export class CropSuggestionController {
-  private static logger = Logger.getInstance('CropSuggestionController');
-  private static cropSuggestionService: CropSuggestionService;
+  private readonly logger = Logger.getInstance('CropSuggestion');
+  private readonly cropSuggestionService: CropSuggestionService;
   constructor() {
-    CropSuggestionController.cropSuggestionService = new CropSuggestionService();
+    this.cropSuggestionService = new CropSuggestionService();
   }
 
-  public static async generateCropSuggestion(
+  public async generateCropSuggestion(
     req: Request,
     res: Response,
     _next: NextFunction
@@ -22,9 +22,9 @@ export class CropSuggestionController {
         message: 'Request received, processing crop suggestion',
         success: true,
       });
-      await CropSuggestionController.cropSuggestionService.generateCropSuggestion(req.body, userId);
+      this.cropSuggestionService.generateCropSuggestion(req.body, userId);
     } catch (error) {
-      CropSuggestionController.logger.logError(error as Error, 'CropSuggestionController');
+      this.logger.logError(error as Error, 'CropSuggestionController');
     }
   }
 }

@@ -7,10 +7,7 @@ export default defineConfig([
   eslintConfigPrettier,
   {
     files: ['**/*.ts'],
-    extends: [
-      '@typescript-eslint/recommended',
-      '@typescript-eslint/stylistic',
-    ],
+    extends: ['@typescript-eslint/recommended', '@typescript-eslint/stylistic'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

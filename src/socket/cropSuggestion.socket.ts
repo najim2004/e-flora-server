@@ -1,14 +1,15 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { Logger } from '../utils/logger';
+import Logger from '../utils/logger';
 import { ICropRecommendations } from '../interfaces/cropRecommendations.interface';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
 
-export enum CropSuggestionStatus {
-  STARTED = 'started',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-}
+export type CropSuggestionStatus =
+  | 'initiated'
+  | 'analyzing'
+  | 'generatingData'
+  | 'savingToDB'
+  | 'completed'
+  | 'failed';
 
 export interface CropSuggestionProgressUpdate {
   userId: string;
@@ -33,7 +34,7 @@ export class CropSuggestionSocketHandler {
 
   constructor(io: SocketIOServer) {
     this.io = io;
-    this.logger = Logger.getInstance('CropSuggestionSocketHandler');
+    this.logger = Logger.getInstance('CropSuggestion');
   }
 
   public registerSocketHandlers(socket: AuthenticatedSocket): void {

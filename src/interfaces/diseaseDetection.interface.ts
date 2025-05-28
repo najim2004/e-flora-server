@@ -1,6 +1,6 @@
-import { Document } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
-export interface IDiseaseDetection extends Document {
+export interface IDiseaseDetection extends CommonInMongoose {
   cropName: string;
   diseaseName: string;
   description: string;
@@ -9,4 +9,5 @@ export interface IDiseaseDetection extends Document {
   treatment: string[];
   causes: string[];
   preventiveTips: string[];
+
 }
