@@ -38,11 +38,13 @@ export class DiseaseDetectionRoutes {
     this.router.get(
       '/disease-detection/result/:id',
       authMiddleware,
+      ValidationMiddleware.validateParams(DiseaseDetectionValidation.resultParam),
       this.diseaseDetectionController.getSpecificDetectedDiseaseResult
     );
     this.router.post(
       '/disease-detection/histories',
       authMiddleware,
+      ValidationMiddleware.validateParams(DiseaseDetectionValidation.historiesQuery),
       this.diseaseDetectionController.getUserDetectedDiseaseHistories
     );
   }

@@ -1,4 +1,5 @@
-import { Document, Types } from 'mongoose';
+import {Types } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
 export interface ActivityDetails {
   confidence: number;
@@ -6,7 +7,7 @@ export interface ActivityDetails {
   location: string;
 }
 
-export interface IActivity extends Document {
+export interface IActivity extends CommonInMongoose {
   user: Types.ObjectId;
   type: string;
   title: string;

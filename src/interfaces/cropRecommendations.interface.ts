@@ -1,4 +1,5 @@
-import { Document, Types } from 'mongoose';
+import { Types } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
 export interface Weather {
   avgMaxTemp: number;
@@ -14,15 +15,18 @@ export interface Crops {
   scientificName: string;
   description: string;
   match: number;
-  cropDetailsId?: Types.ObjectId;
-  detailsSlug?: string;
+  cropDetails: {
+    status: 'pending' | 'success' | 'failed';
+    id?: Types.ObjectId;
+    slug?: string;
+  };
 }
 export interface CultivationTips {
   title: string;
   tips: string[];
 }
 
-export interface ICropRecommendations extends Document {
+export interface ICropRecommendations extends CommonInMongoose {
   crops: Crops[];
   cultivationTips: CultivationTips[];
   weathers: Weather[];

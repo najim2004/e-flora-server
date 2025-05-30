@@ -5,23 +5,29 @@ const CropRecommendationsSchema = new Schema<ICropRecommendations>(
   {
     crops: [
       {
+        _id: false, // ✅ Disable _id for each crop item
         icon: { type: String, required: true },
         name: { type: String, required: true },
         scientificName: { type: String, required: true },
         description: { type: String, required: true },
         match: { type: Number, required: true },
-        cropDetailsId: { type: Schema.Types.ObjectId },
-        detailsSlug: { type: String },
+        cropDetails: {
+          status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
+          id: { type: Schema.Types.ObjectId },
+          slug: { type: String },
+        },
       },
     ],
     cultivationTips: [
       {
+        _id: false, // ✅ Disable _id for each tip item
         title: { type: String, required: true },
         tips: { type: [String], required: true },
       },
     ],
     weathers: [
       {
+        _id: false, // ✅ Disable _id for each weather item
         avgMaxTemp: { type: Number, required: true },
         avgMinTemp: { type: Number, required: true },
         avgHumidity: { type: Number, required: true },

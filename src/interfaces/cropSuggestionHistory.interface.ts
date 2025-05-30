@@ -1,11 +1,12 @@
-import { Document, Types } from 'mongoose';
+import { Types } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
 export interface Location {
   latitude: number;
   longitude: number;
 }
 
-export interface ICropSuggestionHistory extends Document {
+export interface ICropSuggestionHistory extends CommonInMongoose {
   userId: Types.ObjectId;
   cacheKey: string;
   soilType: string;

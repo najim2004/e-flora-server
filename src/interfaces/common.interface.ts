@@ -1,7 +1,7 @@
-import { ObjectId } from "mongoose";
+import { Types } from 'mongoose';
 
 export interface CommonInMongoose {
-  _id: ObjectId;
+  _id: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
 }

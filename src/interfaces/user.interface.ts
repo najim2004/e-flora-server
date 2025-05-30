@@ -1,4 +1,5 @@
-import { Document, Types } from 'mongoose';
+import { Types } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
 export type Language = 'ENG' | 'BN';
 export type MeasurementUnit = 'kilometers' | 'meters' | 'miles';
@@ -58,7 +59,7 @@ export interface AccountSettings {
   connectedAccounts: ConnectedAccounts;
 }
 
-export interface IUser extends Document {
+export interface IUser extends CommonInMongoose {
   name: string;
   role: 'user' | 'admin';
   occupation: string;

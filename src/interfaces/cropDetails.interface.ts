@@ -1,4 +1,4 @@
-import { Document } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
 export interface Season {
   planting: string;
@@ -83,7 +83,7 @@ export interface Economics {
   profitabilityAnalysis: ProfitabilityAnalysis;
 }
 
-export interface ICropDetails extends Document {
+export interface ICropDetails extends CommonInMongoose {
   name: string;
   scientificName: string;
   slug: string;

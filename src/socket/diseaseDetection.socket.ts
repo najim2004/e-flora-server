@@ -1,7 +1,9 @@
 import { Server as SocketIOServer } from 'socket.io';
 import Logger from '../utils/logger';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
-import { DiseaseDetectionProgressPayload, DiseaseDetectionResultPayload } from '../types/diseaseDetection.type';
+import {
+  DiseaseDetectionProgressPayload,
+} from '../types/diseaseDetection.type';
 
 // Constants
 const SOCKET_EVENTS = {
@@ -59,7 +61,7 @@ export class DiseaseDetectionSocketHandler {
    * @param userId User ID
    * @param result Detection result payload
    */
-  public emitFinalResult(userId: string, result: DiseaseDetectionResultPayload): void {
+  public emitFinalResult(userId: string, result:{resultId:string}): void {
     const room = this.getUserRoom(userId);
     const payload = {
       ...result,

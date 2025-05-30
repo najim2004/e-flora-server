@@ -10,7 +10,7 @@ import {
 import { DiseaseDetectionPrompt } from '../prompts/diseaseDetection.prompt';
 import GeminiUtils, { gemini } from '../utils/gemini.utils';
 import { FileUploadUtil } from '../utils/multer.util';
-import mongoose, { ObjectId, PipelineStage } from 'mongoose';
+import mongoose, { PipelineStage, Types } from 'mongoose';
 import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.interface';
 import { SocketServer } from '../socket.server';
 import { IDiseaseDetection } from '../interfaces/diseaseDetection.interface';
@@ -74,12 +74,9 @@ export class DiseaseDetectionService {
           message: 'Detection completed using existing data.',
         });
         this.uploadUtil.deleteFile(image.path);
-        this.socketHandler
-          .diseaseDetection()
-          .emitFinalResult(
-            userId,
-            this.mapToResultPayload(existingDetectionByCropName, newHistory)
-          );
+        this.socketHandler.diseaseDetection().emitFinalResult(userId, {
+          resultId: newHistory._id.toString(),
+        });
         return;
       }
 
@@ -130,12 +127,9 @@ export class DiseaseDetectionService {
           message: 'Detection completed using existing embedded data.',
         });
         this.uploadUtil.deleteFile(image.path);
-        this.socketHandler
-          .diseaseDetection()
-          .emitFinalResult(
-            userId,
-            this.mapToResultPayload(existingDetectionByEmbedding, newHistory)
-          );
+        this.socketHandler.diseaseDetection().emitFinalResult(userId, {
+          resultId: newHistory._id.toString(),
+        });
         return;
       }
 
@@ -197,9 +191,9 @@ export class DiseaseDetectionService {
         message: 'New disease detected and history saved.',
       });
       this.uploadUtil.deleteFile(image.path);
-      this.socketHandler
-        .diseaseDetection()
-        .emitFinalResult(userId, this.mapToResultPayload(savedNewDisease[0], newHistory));
+      this.socketHandler.diseaseDetection().emitFinalResult(userId, {
+        resultId: newHistory._id.toString(),
+      });
       this.logger.debug(`Step 8: Detection completed successfully for user: ${userId}.`);
       return;
     } catch (error) {
@@ -459,7 +453,7 @@ export class DiseaseDetectionService {
     cropName: string,
     description: string | undefined,
     image: Express.Multer.File,
-    detectedDiseaseId: ObjectId,
+    detectedDiseaseId: Types.ObjectId,
     session: mongoose.ClientSession
   ): Promise<IDiseaseDetectionHistory> {
     this.logger.debug(

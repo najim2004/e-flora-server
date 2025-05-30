@@ -1,4 +1,5 @@
-import { Document, Types } from 'mongoose';
+import { Types } from 'mongoose';
+import { CommonInMongoose } from './common.interface';
 
 export interface LaborResources {
   familyWorkers: string;
@@ -10,7 +11,7 @@ export interface EquipmentAndResources {
   laborResources: LaborResources;
 }
 
-export interface IFarm extends Document {
+export interface IFarm extends CommonInMongoose {
   user: Types.ObjectId;
   farmName: string;
   location: string;

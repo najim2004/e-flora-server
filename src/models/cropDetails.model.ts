@@ -33,6 +33,7 @@ const cropDetailsSchema = new Schema<ICropDetails>({
 
   cultivationGuides: [
     {
+      _id: false,
       title: { type: String, required: true },
       guides: [{ type: String, required: true }],
     },
@@ -48,6 +49,7 @@ const cropDetailsSchema = new Schema<ICropDetails>({
     weedManagement: [{ type: String, required: true }],
     pestsManagement: [
       {
+        _id: false,
         name: String,
         symptoms: String,
         managements: String,
@@ -55,6 +57,7 @@ const cropDetailsSchema = new Schema<ICropDetails>({
     ],
     diseaseManagement: [
       {
+        _id: false,
         name: String,
         symptoms: String,
         managements: String,
@@ -64,6 +67,7 @@ const cropDetailsSchema = new Schema<ICropDetails>({
 
   harvesting: [
     {
+      _id: false,
       title: { type: String, required: true },
       guides: [{ type: String, required: true }],
     },
