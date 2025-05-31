@@ -1,463 +1,331 @@
-import { ICropRecommendations } from '../interfaces/cropRecommendations.interface';
+import { Crop, ICropRecommendations } from '../interfaces/cropRecommendations.interface';
 import { CropDetails } from '../models/cropDetails.model';
 import { CropRecommendations } from '../models/cropRecommendations.model';
 import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
 import { CropSuggestionInput, CropSuggestionStatus } from '../types/cropSuggestion.types';
-import GeminiUtils from '../utils/gemini.utils';
-import Logger from '../utils/logger';
-import ngeohash from 'ngeohash';
-import { WeatherAverages, WeatherService } from '../utils/weather.utils';
-import { SocketServer } from '../socket.server';
-import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
-import { ICropDetails } from '../interfaces/cropDetails.interface';
-import mongoose, { Types } from 'mongoose';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
+import { WeatherAverages, WeatherService } from '../utils/weather.utils';
+import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
+import ngeohash from 'ngeohash';
+import mongoose, { Types } from 'mongoose';
+import Logger from '../utils/logger';
+import GeminiUtils from '../utils/gemini.utils';
+import { SocketServer } from '../socket.server';
+import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
 
 export class CropSuggestionService {
-  private logger: Logger;
+  private log: Logger;
   private gemini: GeminiUtils;
-  private prompts: CropSuggestionPrompts;
-  private socketHandler: SocketServer;
+  private prompt: CropSuggestionPrompts;
+  private socket: SocketServer;
 
   constructor() {
-    this.logger = Logger.getInstance('CropSuggestion');
+    this.log = Logger.getInstance('CropSuggestion');
     this.gemini = new GeminiUtils();
-    this.prompts = new CropSuggestionPrompts();
-    this.socketHandler = SocketServer.getInstance();
+    this.prompt = new CropSuggestionPrompts();
+    this.socket = SocketServer.getInstance();
   }
 
-  /**
-   * Generates crop suggestions for a user based on input parameters and weather data.
-   * It first checks for existing recommendations in cache, then generates new ones using Gemini AI
-   * if not found. It utilizes MongoDB transactions for atomicity of core operations.
-   *
-   * @param input The crop suggestion input parameters.
-   * @param userId The ID of the user requesting the suggestion.
-   * @returns A promise that resolves to the crop recommendations or void if an error occurs.
-   */
   public async generateCropSuggestion(input: CropSuggestionInput, userId: string): Promise<void> {
-    const cacheKey = this.createCacheKey(input);
-    this.emitProgress(userId, 'initiated', 10, 'Starting crop suggestion generation...');
-    this.logger.info(`Initiating crop suggestion for user: ${userId}, with cacheKey: ${cacheKey}`);
-
+    const key = this.genKey(input);
+    this.emitProgress(userId, 'initiated', 10, 'Starting...');
     try {
-      const existingRecommendation = await this.findSimilarRecommendation(cacheKey, userId);
-      if (existingRecommendation) {
-        this.logger.info(
-          `Existing recommendation found for cacheKey: ${cacheKey}. Retrieving from cache.`
-        );
-        this.emitProgress(userId, 'completed', 100, 'Crop suggestions retrieved from cache.');
-        // Ensure history is recorded even if from cache
-        const newHistory = await this.recordSuggestionHistory({
-          ...input,
-          userId: new Types.ObjectId(userId),
-          cacheKey,
-          cropRecommendationsId: existingRecommendation._id,
-        });
-        this.socketHandler.cropSuggestion().emitCompleted(userId, {
-          _id: newHistory._id.toString(),
-          soilType: newHistory.soilType,
-          location: newHistory.location,
-          farmSize: newHistory.farmSize,
-          irrigationAvailability: newHistory.irrigationAvailability,
-          recommendations: {
-            ...existingRecommendation,
-            _id: existingRecommendation._id.toString(),
-          },
-        });
-        return;
-      }
-
-      this.logger.info(
-        `No existing recommendation found for cacheKey: ${cacheKey}. Generating new one.`
-      );
-
-      const weatherAverages = await this.fetchWeatherData(input, userId);
-      const newRecommendation = await this.processNewRecommendation(
-        input,
-        userId,
-        cacheKey,
-        weatherAverages
-      );
-
-      if (newRecommendation) {
-        this.socketHandler.cropSuggestion().emitCompleted(userId, {
-          ...newRecommendation.newHistory,
-          _id: newRecommendation.newHistory._id.toString(),
-          recommendations: {
-            ...newRecommendation.recommendedCrops,
-            _id: newRecommendation.recommendedCrops._id.toString(),
-          },
-        });
-        this.generateCropDetailsInBackground(newRecommendation.recommendedCrops, userId);
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to generate crop recommendations for user: ${userId}. Error: ${(error as Error).message}`
-      );
-      this.emitProgress(
-        userId,
-        'failed',
-        0,
-        'Failed to generate crop suggestions. Please try again.'
-      );
-    }
-  }
-
-  /**
-   * Searches for similar crop recommendations based on cache key, first in user's history
-   * (last 7 days), then in a global cache (last 24 hours).
-   *
-   * @param cacheKey The unique key identifying the combination of input parameters.
-   * @param userId The ID of the user.
-   * @returns A promise that resolves to the found crop recommendations or null if not found.
-   */
-  private async findSimilarRecommendation(
-    cacheKey: string,
-    userId: string
-  ): Promise<ICropRecommendations | null> {
-    this.emitProgress(userId, 'analyzing', 15, 'Checking user history...');
-    const historyLookup = await this.getRecommendationFromModel(
-      CropSuggestionHistory,
-      {
-        cacheKey,
-        userId: new Types.ObjectId(userId),
-        createdAt: { $gte: this.getDateXDaysAgo(7) },
-      },
-      'user history'
-    );
-    if (historyLookup) return historyLookup;
-
-    this.emitProgress(userId, 'analyzing', 20, 'Checking global cache...');
-    const cacheLookup = await this.getRecommendationFromModel(
-      CropSuggestionCache,
-      { cacheKey, createdAt: { $gte: this.getDateXDaysAgo(1) } },
-      'global cache'
-    );
-    return cacheLookup;
-  }
-
-  /**
-   * Fetches weather data for the given location.
-   */
-  private async fetchWeatherData(
-    input: CropSuggestionInput,
-    userId: string
-  ): Promise<WeatherAverages> {
-    this.emitProgress(userId, 'analyzing', 20, 'Fetching weather data...');
-    const weather = new WeatherService(input.location.latitude, input.location.longitude);
-    const averages = await weather.getWeatherAverages(16);
-    this.logger.debug(`Processed weather averages: ${JSON.stringify(averages)}`);
-    this.emitProgress(userId, 'analyzing', 40, 'Weather data fetched. Preparing AI prompt...');
-    return averages;
-  }
-
-  /**
-   * Processes new recommendation generation, including AI interaction, saving to DB, and caching.
-   * This function operates within a MongoDB transaction.
-   */
-  private async processNewRecommendation(
-    input: CropSuggestionInput,
-    userId: string,
-    cacheKey: string,
-    weatherAverages: WeatherAverages
-  ): Promise<{
-    recommendedCrops: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>;
-    newHistory: Omit<
-      ICropSuggestionHistory,
-      'createdAt' | 'updatedAt' | 'cacheKey' | 'cropRecommendationsId' | 'userId'
-    >;
-  } | null> {
-    let session: mongoose.ClientSession | null = null;
-    try {
-      session = await mongoose.startSession();
-      session.startTransaction();
-      this.logger.info(`MongoDB transaction started for user: ${userId}.`);
-
-      const recommendedCrops = await this.generateRecommendationWithGemini(
-        input,
-        userId,
-        weatherAverages
-      );
-
-      if (recommendedCrops) {
-        // Save to cache
-        await CropSuggestionCache.create(
-          [{ cacheKey, cropRecommendationsId: recommendedCrops._id }],
-          { session }
-        );
-        this.logger.info(`Recommendations cached with key: ${cacheKey} within transaction.`);
-        this.emitProgress(userId, 'savingToDB', 90, 'Data saved to cache. Committing changes...');
-
-        // Record history
-        const newHistory = await this.recordSuggestionHistory(
-          {
-            ...input,
-            userId: new Types.ObjectId(userId),
-            cacheKey,
-            cropRecommendationsId: recommendedCrops._id,
-          },
-          session
-        );
-
-        await session.commitTransaction();
-        this.logger.info(`Transaction committed successfully for user: ${userId}.`);
-        this.emitProgress(userId, 'completed', 100, 'Crop suggestions generated and saved.');
-        this.logger.debug(`Recommended crops data: ${JSON.stringify(recommendedCrops)}`);
-        return {
-          recommendedCrops,
-          newHistory: {
-            _id: newHistory._id,
-            soilType: newHistory.soilType,
-            location: newHistory.location,
-            farmSize: newHistory.farmSize,
-            irrigationAvailability: newHistory.irrigationAvailability,
-          },
-        };
-      }
-      return null;
-    } catch (error) {
-      if (session) {
-        await session.abortTransaction();
-        this.logger.error(
-          `Transaction aborted for user: ${userId} due to error: ${(error as Error).message}`
-        );
-      }
-      throw error; // Re-throw to be caught by generateCropSuggestion's catch block
-    } finally {
-      if (session) {
-        session.endSession();
-        this.logger.info(`MongoDB session ended for user: ${userId}.`);
-      }
-    }
-  }
-
-  /**
-   * Generates crop recommendations using Gemini AI and saves them to the database.
-   * This function should be called within a MongoDB transaction.
-   */
-  private async generateRecommendationWithGemini(
-    input: CropSuggestionInput,
-    userId: string,
-    weatherAverages: WeatherAverages
-  ): Promise<Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>> {
-    const prompt = this.prompts.getCropRecommendationPrompt({ ...input, ...weatherAverages });
-    const maxRetries = 2;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        this.emitProgress(
+      const cached = await this.findCached(key, userId);
+      if (cached)
+        return this.emitDone(
           userId,
-          'generatingData',
-          50 + (attempt - 1) * 10,
-          `Generating recommendations (Attempt ${attempt})...`
+          cached.recs,
+          await this.saveHistory({
+            ...input,
+            cacheKey: key,
+            userId: new Types.ObjectId(userId),
+            cropRecommendationsId: cached.recs._id,
+          })
         );
-        const response = await this.gemini.generateResponse(prompt);
-        if (!response) throw new Error('Gemini AI returned an empty response.');
 
-        const parsed = JSON.parse(response);
-        if (!parsed.crops || !Array.isArray(parsed.crops) || parsed.crops.length === 0) {
-          throw new Error('Gemini AI response missing or invalid "crops" array.');
-        }
-        this.logger.debug(`Gemini response parsed successfully: ${JSON.stringify(parsed)}`);
-
-        const [dbResponse] = await CropRecommendations.create([parsed]); // Mongoose handles session implicitly if passed in main create
-        this.logger.info(`Recommendations saved to DB for user: ${userId}.`);
-        return { ...parsed, _id: dbResponse._id };
-      } catch (error) {
-        this.logger.warn(
-          `Failed to generate valid recommendations (Attempt ${attempt}). Error: ${(error as Error).message}`
-        );
-        if (attempt === maxRetries) {
-          throw new Error('Failed to generate valid crop recommendations after multiple attempts.');
-        }
-      }
+      const weather = await this.fetchWeather(input, userId);
+      const { recs, hist } = await this.createRecommendation(input, userId, key, weather);
+      this.emitDone(userId, recs, hist);
+      this.generateDetails(recs._id, recs.crops, userId).catch(e => {
+        this.log.error(`generateDetails failed: ${(e as Error).message}`);
+      });
+    } catch (e) {
+      this.log.error(`User ${userId}: ${(e as Error).message}`);
+      this.socketHandler().emitFailed(userId, 'Generation failed. Try again.');
     }
-    throw new Error('Unexpected error in generateRecommendationWithGemini.'); // Should not be reached
   }
 
-  /**
-   * Records the crop suggestion request in the user's history.
-   */
-  private async recordSuggestionHistory(
-    input: Omit<ICropSuggestionHistory, 'createdAt' | 'updatedAt' | '_id'>,
+  public async getOneHistory(id: string): Promise<{
+    _id: string;
+    soilType: string;
+    location: { latitude: number; longitude: number };
+    farmSize: number;
+    irrigationAvailability: boolean;
+    recommendations: ICropRecommendations;
+  } | null> {
+    const hist = await CropSuggestionHistory.findById(id)
+      .select('-__v -createdAt -updatedAt -cacheKey -userId')
+      .populate({
+        path: 'cropRecommendationsId',
+        select: '-__v -createdAt -updatedAt',
+      });
+    if (!hist || !hist.cropRecommendationsId) return null;
+    const recs = hist.cropRecommendationsId as ICropRecommendations;
+    return {
+      _id: hist._id.toString(),
+      soilType: hist.soilType,
+      location: hist.location,
+      farmSize: hist.farmSize,
+      irrigationAvailability: hist.irrigationAvailability,
+      recommendations: recs,
+    };
+  }
+
+  public async getHistories(
+    userId: string,
+    page = 1,
+    limit = 10
+  ): Promise<ICropSuggestionHistory[]> {
+    return CropSuggestionHistory.find({ userId })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select('_id soilType location farmSize irrigationAvailability createdAt');
+  }
+
+  private async findCached(
+    key: string,
+    userId: string
+  ): Promise<{
+    recs: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>;
+  } | null> {
+    this.emitProgress(userId, 'analyzing', 15, 'Checking history...');
+    const uid = new Types.ObjectId(userId);
+    const hist = await this.lookup(CropSuggestionHistory, {
+      cacheKey: key,
+      userId: uid,
+      createdAt: { $gte: this.daysAgo(7) },
+    });
+    if (hist) return { recs: hist };
+    this.emitProgress(userId, 'analyzing', 20, 'Checking cache...');
+    const cache = await this.lookup(CropSuggestionCache, {
+      cacheKey: key,
+      createdAt: { $gte: this.daysAgo(1) },
+    });
+    return cache ? { recs: cache } : null;
+  }
+
+  private async createRecommendation(
+    input: CropSuggestionInput,
+    uid: string,
+    key: string,
+    weather: WeatherAverages
+  ): Promise<{
+    recs: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>;
+    hist: Pick<
+      ICropSuggestionHistory,
+      '_id' | 'soilType' | 'location' | 'farmSize' | 'irrigationAvailability'
+    >;
+  }> {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const recs = await this.callGemini(input, uid, weather);
+      await CropSuggestionCache.create([{ cacheKey: key, cropRecommendationsId: recs._id }], {
+        session,
+      });
+      const hist = await this.saveHistory(
+        {
+          ...input,
+          cacheKey: key,
+          userId: new Types.ObjectId(uid),
+          cropRecommendationsId: recs._id,
+        },
+        session
+      );
+      await session.commitTransaction();
+      this.emitProgress(uid, 'completed', 100, 'Generated successfully.');
+      return { recs, hist };
+    } catch (e) {
+      await session.abortTransaction();
+      throw e;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  private async callGemini(
+    input: CropSuggestionInput,
+    uid: string,
+    weather: WeatherAverages
+  ): Promise<Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>> {
+    const prompt = this.prompt.getCropRecommendationPrompt({ ...input, ...weather });
+    for (let i = 1; i <= 2; i++) {
+      this.emitProgress(uid, 'generatingData', 50 + i * 10, `Generating (Attempt ${i})...`);
+      try {
+        const res = JSON.parse((await this.gemini.generateResponse(prompt)) || '{}');
+        if (!res?.crops?.length) throw new Error('Invalid response');
+        const [saved] = await CropRecommendations.create([res]);
+        return { ...res, _id: saved._id };
+      } catch (e) {
+        if (i === 2) throw new Error('Gemini AI failed after retries');
+        this.log.warn(`Retry ${i} failed: ${(e as Error).message}`);
+      }
+    }
+    throw new Error('Unreachable');
+  }
+
+  private async fetchWeather(input: CropSuggestionInput, uid: string): Promise<WeatherAverages> {
+    this.emitProgress(uid, 'analyzing', 30, 'Fetching weather...');
+    const data = await new WeatherService(
+      input.location.latitude,
+      input.location.longitude
+    ).getWeatherAverages(16);
+    this.emitProgress(uid, 'analyzing', 40, 'Weather fetched.');
+    return data;
+  }
+
+  private async generateDetails(id: Types.ObjectId, crops: Crop[], uid: string): Promise<void> {
+    const updated = await Promise.all(crops.map(crop => this.detailCrop(crop, uid)));
+    try {
+      await CropRecommendations.findByIdAndUpdate(id, { $set: { crops: updated } });
+    } catch (e) {
+      this.log.error(`Crop detail update fail for ${id}: ${(e as Error).message}`);
+      await CropRecommendations.findByIdAndUpdate(id, {
+        $set: { crops: updated.map(c => ({ ...c, cropDetails: { status: 'failed' } })) },
+      });
+    }
+  }
+
+  private async detailCrop(crop: Crop, uid: string): Promise<Crop> {
+    try {
+      const ex = await CropDetails.findOne({
+        $or: [{ scientificName: crop.scientificName }, { name: crop.name }],
+      }).select('_id slug scientificName');
+      if (ex) {
+        this.emitCropDetail(uid, 'success', ex.scientificName, ex.slug);
+        return { ...crop, cropDetails: { status: 'success', id: ex._id, slug: ex.slug } };
+      }
+      const res = JSON.parse(
+        (await this.gemini.generateResponse(
+          this.prompt.getCropDetailsPrompt(crop.name, crop.scientificName)
+        )) || '{}'
+      );
+      if (!res?.name) throw new Error('Invalid AI detail');
+      const saved = await CropDetails.create(res);
+      this.emitCropDetail(uid, 'success', saved.scientificName, saved.slug);
+      return { ...crop, cropDetails: { status: 'success', id: saved._id, slug: saved.slug } };
+    } catch {
+      this.emitCropDetail(uid, 'failed', crop.scientificName);
+      return { ...crop, cropDetails: { status: 'failed' } };
+    }
+  }
+
+  private async saveHistory(
+    data: Omit<ICropSuggestionHistory, 'createdAt' | 'updatedAt' | '_id'> & {
+      userId: string | Types.ObjectId;
+    },
     session?: mongoose.ClientSession
-  ): Promise<ICropSuggestionHistory> {
-    const newHistory = await CropSuggestionHistory.create(
+  ): Promise<
+    Pick<
+      ICropSuggestionHistory,
+      '_id' | 'soilType' | 'location' | 'farmSize' | 'irrigationAvailability'
+    >
+  > {
+    const [h] = await CropSuggestionHistory.create(
       [
         {
-          userId: input.userId,
-          soilType: input.soilType,
-          farmSize: input.farmSize,
-          irrigationAvailability: input.irrigationAvailability,
-          location: input.location,
-          cacheKey: input.cacheKey,
-          cropRecommendationsId: input.cropRecommendationsId,
+          userId: new Types.ObjectId(data.userId),
+          soilType: data.soilType,
+          location: data.location,
+          farmSize: data.farmSize,
+          irrigationAvailability: data.irrigationAvailability,
+          cacheKey: data.cacheKey,
+          cropRecommendationsId: data.cropRecommendationsId,
         },
       ],
       { session }
     );
-    this.logger.info(`Crop suggestion history recorded for user: ${input.userId.toString()}.`);
-    if (!newHistory || newHistory.length == 0) throw new Error('Failed to save history');
-    return newHistory[0];
+    return {
+      _id: h._id,
+      soilType: h.soilType,
+      location: h.location,
+      farmSize: h.farmSize,
+      irrigationAvailability: h.irrigationAvailability,
+    };
   }
 
-  /**
-   * Asynchronously generates and updates detailed information for each recommended crop.
-   * This process runs in the background and does not block the main recommendation flow.
-   */
-  private async generateCropDetailsInBackground(
-    { _id, crops }: Pick<ICropRecommendations, '_id' | 'crops'>,
-    userId: string
-  ): Promise<void> {
-    const updatedCrops = await Promise.all(
-      crops.map(async crop => {
-        try {
-          const existing = (await CropDetails.findOne({
-            $or: [{ scientificName: crop.scientificName }, { name: crop.name }],
-          })
-            .select('_id slug scientificName')
-            .exec()) as Pick<ICropDetails, '_id' | 'slug' | 'scientificName'>;
-
-          if (existing) {
-            this.logger.info(`Details exist for ${crop.name}. Skipping generation.`);
-            this.socketHandler.cropSuggestion().emitCropDetails(userId, {
-              status: 'success',
-              slug: existing.slug,
-              scientificName: existing.scientificName,
-            });
-            return {
-              ...crop,
-              cropDetails: { status: 'success', id: existing._id, slug: existing.slug },
-            };
-          }
-
-          const response = await this.gemini.generateResponse(
-            this.prompts.getCropDetailsPrompt(crop.name, crop.scientificName)
-          );
-          if (!response) throw new Error('Empty response');
-
-          const parsed = JSON.parse(response);
-          if (!parsed.name || !parsed.scientificName) throw new Error('Invalid parsed details');
-
-          const saved = (await CropDetails.create(parsed)) as ICropDetails;
-
-          this.socketHandler.cropSuggestion().emitCropDetails(userId, {
-            status: 'success',
-            slug: saved.slug,
-            scientificName: saved.scientificName,
-          });
-          this.logger.info(`Generated and saved details for ${crop.name}.`);
-
-          return { ...crop, cropDetails: { status: 'success', id: saved._id, slug: saved.slug } };
-        } catch (err) {
-          this.logger.warn(`Failed for ${crop.name}: ${(err as Error).message}`);
-          this.socketHandler
-            .cropSuggestion()
-            .emitCropDetails(userId, { status: 'failed', scientificName: crop.scientificName });
-          return { ...crop, cropDetails: { status: 'failed' } };
+  private async lookup(
+    model: typeof CropSuggestionHistory | typeof CropSuggestionCache,
+    query: Record<string, unknown>
+  ): Promise<Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'> | null> {
+    const doc = await model.findOne(query).populate({
+      path: 'cropRecommendationsId',
+      select: 'crops weathers cultivationTips',
+    });
+    return doc?.cropRecommendationsId
+      ? {
+          _id: doc.cropRecommendationsId._id,
+          crops: doc.cropRecommendationsId.crops,
+          cultivationTips: doc.cropRecommendationsId.cultivationTips,
+          weathers: doc.cropRecommendationsId.weathers,
         }
-      })
-    );
-
-    try {
-      await CropRecommendations.findByIdAndUpdate(_id, { $set: { crops: updatedCrops } });
-      this.logger.info(`Recommendations updated for ID: ${_id}.`);
-    } catch (err) {
-      this.logger.error(
-        `Failed to update recommendations for ID: ${_id}. Error: ${(err as Error).message}`
-      );
-      await CropRecommendations.findByIdAndUpdate(_id, {
-        $set: {
-          crops: updatedCrops.map(c => {
-            return { ...c, cropDetails: { status: 'failed' } };
-          }),
-        },
-      });
-      updatedCrops.forEach(c =>
-        this.socketHandler
-          .cropSuggestion()
-          .emitCropDetails(userId, { status: 'failed', scientificName: c.scientificName })
-      );
-    }
+      : null;
   }
 
-  /**
-   * Creates a unique cache key based on the input parameters for efficient caching.
-   *
-   * @param input The crop suggestion input.
-   * @returns A string representing the unique cache key.
-   */
-  private createCacheKey(input: CropSuggestionInput): string {
-    const { soilType, farmSize, irrigationAvailability, location } = input;
-    const geoHashed = ngeohash.encode(location.latitude, location.longitude, 5); // Precision set to 5
-    const farmSizeRange =
-      farmSize <= 1
-        ? 'small_0-1_acre'
-        : farmSize <= 5
-          ? 'medium_1-5_acres'
-          : farmSize <= 10
-            ? 'large_5-10_acres'
-            : 'very_large_10+_acres';
-    const cacheKey = `${soilType}-${farmSizeRange}-${irrigationAvailability}-${geoHashed}`;
-    this.logger.debug(`Generated cacheKey: ${cacheKey}`);
-    return cacheKey;
+  private emitDone(
+    userId: string,
+    recs: ICropRecommendations,
+    hist: Pick<
+      ICropSuggestionHistory,
+      '_id' | 'soilType' | 'location' | 'farmSize' | 'irrigationAvailability'
+    >
+  ): void {
+    this.socketHandler().emitCompleted(userId, {
+      ...hist,
+      _id: hist._id.toString(),
+      recommendations: { ...recs, _id: recs._id.toString() },
+    });
   }
 
-  /**
-   * Helper to emit progress updates via socket.
-   */
+  private emitCropDetail(
+    userId: string,
+    status: 'success' | 'failed',
+    sci: string,
+    slug?: string
+  ): void {
+    this.socketHandler().emitCropDetails(userId, { status, slug, scientificName: sci });
+  }
+
   private emitProgress(
     userId: string,
     status: CropSuggestionStatus,
     progress: number,
-    message: string
+    msg: string
   ): void {
-    this.socketHandler.cropSuggestion().emitProgress({ userId, status, progress, message });
+    this.socketHandler().emitProgress({ userId, status, progress, message: msg });
   }
 
-  /**
-   * Generic helper to find a recommendation in DB from either history or cache.
-   */
-  private async getRecommendationFromModel(
-    model: typeof CropSuggestionHistory | typeof CropSuggestionCache,
-    query: {
-      cacheKey: string;
-      userId?: Types.ObjectId;
-      createdAt?: { $gte: Date };
-    },
-    source: string
-  ): Promise<ICropRecommendations | null> {
-    this.logger.info(`Searching ${source} for crop suggestions.`);
-    const found = await model
-      .findOne(query)
-      .select('cropRecommendationsId')
-      .populate({
-        path: 'cropRecommendationsId',
-        select: 'crops weathers cultivationTips',
-      })
-      .exec();
-
-    if (found?.cropRecommendationsId) {
-      this.logger.info(`Found recommendation from ${source}.`);
-      const { cropRecommendationsId } = found;
-      return {
-        _id: cropRecommendationsId._id,
-        crops: found.cropRecommendationsId.crops,
-        cultivationTips: found.cropRecommendationsId.cultivationTips,
-        weathers: found.cropRecommendationsId.weathers,
-      } as ICropRecommendations;
-    }
-    return null;
+  private genKey({
+    soilType,
+    farmSize,
+    irrigationAvailability,
+    location,
+  }: CropSuggestionInput): string {
+    const hash = ngeohash.encode(location.latitude, location.longitude, 5);
+    const size =
+      farmSize <= 1 ? 'small' : farmSize <= 5 ? 'medium' : farmSize <= 10 ? 'large' : 'xlarge';
+    return `${soilType}-${size}-${irrigationAvailability}-${hash}`;
   }
 
-  /**
-   * Helper to get a date X days ago.
-   */
-  private getDateXDaysAgo(days: number): Date {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return date;
+  private daysAgo(n: number): Date {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d;
+  }
+
+  private socketHandler(): CropSuggestionSocketHandler {
+    return this.socket.cropSuggestion();
   }
 }

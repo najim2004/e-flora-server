@@ -9,5 +9,4 @@ export interface IDiseaseDetection extends CommonInMongoose {
   treatment: string[];
   causes: string[];
   preventiveTips: string[];
-
 }

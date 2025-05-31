@@ -9,7 +9,7 @@ export interface Weather {
   avgWindSpeed: number;
   dominantWindDirection: string;
 }
-export interface Crops {
+export interface Crop {
   icon: string;
   name: string;
   scientificName: string;
@@ -27,7 +27,7 @@ export interface CultivationTips {
 }
 
 export interface ICropRecommendations extends CommonInMongoose {
-  crops: Crops[];
+  crops: Crop[];
   cultivationTips: CultivationTips[];
   weathers: Weather[];
 }

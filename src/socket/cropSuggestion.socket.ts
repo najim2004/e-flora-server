@@ -1,6 +1,5 @@
 import { Server as SocketIOServer } from 'socket.io';
 import Logger from '../utils/logger';
-import { ICropRecommendations } from '../interfaces/cropRecommendations.interface';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
 import { CropSuggestionOutput, CropSuggestionProgressUpdate } from '../types/cropSuggestion.types';
 
@@ -76,14 +75,5 @@ export class CropSuggestionSocketHandler {
       timestamp: new Date(),
     });
     this.log.debug(`Details update for ${data.scientificName} sent to ${userId}`);
-  }
-
-  async emitFinal(
-    userId: string,
-    data: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>
-  ): Promise<void> {
-    const room = CropSuggestionSocketHandler.ROOM(userId);
-    this.io.to(room).emit('finalCropRecommendations', { ...data, timestamp: new Date() });
-    this.log.info(`Final recommendation sent to ${userId}`);
   }
 }
