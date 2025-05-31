@@ -3,7 +3,7 @@ import { CropDetails } from '../models/cropDetails.model';
 import { CropRecommendations } from '../models/cropRecommendations.model';
 import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
-import { CropSuggestionInput } from '../types/cropSuggestion.types';
+import { CropSuggestionInput, CropSuggestionStatus } from '../types/cropSuggestion.types';
 import GeminiUtils from '../utils/gemini.utils';
 import Logger from '../utils/logger';
 import ngeohash from 'ngeohash';
@@ -12,7 +12,6 @@ import { SocketServer } from '../socket.server';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 import mongoose, { Types } from 'mongoose';
-import { CropSuggestionStatus } from '../socket/cropSuggestion.socket';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 
 export class CropSuggestionService {
@@ -50,15 +49,23 @@ export class CropSuggestionService {
         );
         this.emitProgress(userId, 'completed', 100, 'Crop suggestions retrieved from cache.');
         // Ensure history is recorded even if from cache
-        await this.recordSuggestionHistory({
+        const newHistory = await this.recordSuggestionHistory({
           ...input,
           userId: new Types.ObjectId(userId),
           cacheKey,
           cropRecommendationsId: existingRecommendation._id,
         });
-        this.socketHandler
-          .cropSuggestion()
-          .sendFinalRecommendations(userId, existingRecommendation);
+        this.socketHandler.cropSuggestion().emitCompleted(userId, {
+          _id: newHistory._id.toString(),
+          soilType: newHistory.soilType,
+          location: newHistory.location,
+          farmSize: newHistory.farmSize,
+          irrigationAvailability: newHistory.irrigationAvailability,
+          recommendations: {
+            ...existingRecommendation,
+            _id: existingRecommendation._id.toString(),
+          },
+        });
         return;
       }
 
@@ -67,16 +74,23 @@ export class CropSuggestionService {
       );
 
       const weatherAverages = await this.fetchWeatherData(input, userId);
-      const recommendedCrops = await this.processNewRecommendation(
+      const newRecommendation = await this.processNewRecommendation(
         input,
         userId,
         cacheKey,
         weatherAverages
       );
 
-      if (recommendedCrops) {
-        this.socketHandler.cropSuggestion().sendFinalRecommendations(userId, recommendedCrops);
-        this.generateCropDetailsInBackground(recommendedCrops, userId);
+      if (newRecommendation) {
+        this.socketHandler.cropSuggestion().emitCompleted(userId, {
+          ...newRecommendation.newHistory,
+          _id: newRecommendation.newHistory._id.toString(),
+          recommendations: {
+            ...newRecommendation.recommendedCrops,
+            _id: newRecommendation.recommendedCrops._id.toString(),
+          },
+        });
+        this.generateCropDetailsInBackground(newRecommendation.recommendedCrops, userId);
       }
     } catch (error) {
       this.logger.error(
@@ -103,7 +117,7 @@ export class CropSuggestionService {
     cacheKey: string,
     userId: string
   ): Promise<ICropRecommendations | null> {
-    this.emitProgress(userId, 'initiated', 15, 'Checking user history...');
+    this.emitProgress(userId, 'analyzing', 15, 'Checking user history...');
     const historyLookup = await this.getRecommendationFromModel(
       CropSuggestionHistory,
       {
@@ -115,7 +129,7 @@ export class CropSuggestionService {
     );
     if (historyLookup) return historyLookup;
 
-    this.emitProgress(userId, 'initiated', 20, 'Checking global cache...');
+    this.emitProgress(userId, 'analyzing', 20, 'Checking global cache...');
     const cacheLookup = await this.getRecommendationFromModel(
       CropSuggestionCache,
       { cacheKey, createdAt: { $gte: this.getDateXDaysAgo(1) } },
@@ -148,7 +162,13 @@ export class CropSuggestionService {
     userId: string,
     cacheKey: string,
     weatherAverages: WeatherAverages
-  ): Promise<Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'> | null> {
+  ): Promise<{
+    recommendedCrops: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>;
+    newHistory: Omit<
+      ICropSuggestionHistory,
+      'createdAt' | 'updatedAt' | 'cacheKey' | 'cropRecommendationsId' | 'userId'
+    >;
+  } | null> {
     let session: mongoose.ClientSession | null = null;
     try {
       session = await mongoose.startSession();
@@ -171,7 +191,7 @@ export class CropSuggestionService {
         this.emitProgress(userId, 'savingToDB', 90, 'Data saved to cache. Committing changes...');
 
         // Record history
-        await this.recordSuggestionHistory(
+        const newHistory = await this.recordSuggestionHistory(
           {
             ...input,
             userId: new Types.ObjectId(userId),
@@ -185,7 +205,16 @@ export class CropSuggestionService {
         this.logger.info(`Transaction committed successfully for user: ${userId}.`);
         this.emitProgress(userId, 'completed', 100, 'Crop suggestions generated and saved.');
         this.logger.debug(`Recommended crops data: ${JSON.stringify(recommendedCrops)}`);
-        return recommendedCrops;
+        return {
+          recommendedCrops,
+          newHistory: {
+            _id: newHistory._id,
+            soilType: newHistory.soilType,
+            location: newHistory.location,
+            farmSize: newHistory.farmSize,
+            irrigationAvailability: newHistory.irrigationAvailability,
+          },
+        };
       }
       return null;
     } catch (error) {
@@ -293,9 +322,11 @@ export class CropSuggestionService {
 
           if (existing) {
             this.logger.info(`Details exist for ${crop.name}. Skipping generation.`);
-            this.socketHandler
-              .cropSuggestion()
-              .emitCropDetailsUpdate(userId, existing.slug, existing.scientificName);
+            this.socketHandler.cropSuggestion().emitCropDetails(userId, {
+              status: 'success',
+              slug: existing.slug,
+              scientificName: existing.scientificName,
+            });
             return {
               ...crop,
               cropDetails: { status: 'success', id: existing._id, slug: existing.slug },
@@ -312,9 +343,11 @@ export class CropSuggestionService {
 
           const saved = (await CropDetails.create(parsed)) as ICropDetails;
 
-          this.socketHandler
-            .cropSuggestion()
-            .emitCropDetailsUpdate(userId, saved.slug, saved.scientificName);
+          this.socketHandler.cropSuggestion().emitCropDetails(userId, {
+            status: 'success',
+            slug: saved.slug,
+            scientificName: saved.scientificName,
+          });
           this.logger.info(`Generated and saved details for ${crop.name}.`);
 
           return { ...crop, cropDetails: { status: 'success', id: saved._id, slug: saved.slug } };
@@ -322,7 +355,7 @@ export class CropSuggestionService {
           this.logger.warn(`Failed for ${crop.name}: ${(err as Error).message}`);
           this.socketHandler
             .cropSuggestion()
-            .emitCropDetailsUpdate(userId, null, crop.scientificName);
+            .emitCropDetails(userId, { status: 'failed', scientificName: crop.scientificName });
           return { ...crop, cropDetails: { status: 'failed' } };
         }
       })
@@ -335,8 +368,17 @@ export class CropSuggestionService {
       this.logger.error(
         `Failed to update recommendations for ID: ${_id}. Error: ${(err as Error).message}`
       );
+      await CropRecommendations.findByIdAndUpdate(_id, {
+        $set: {
+          crops: updatedCrops.map(c => {
+            return { ...c, cropDetails: { status: 'failed' } };
+          }),
+        },
+      });
       updatedCrops.forEach(c =>
-        this.socketHandler.cropSuggestion().emitCropDetailsUpdate(userId, null, c.scientificName)
+        this.socketHandler
+          .cropSuggestion()
+          .emitCropDetails(userId, { status: 'failed', scientificName: c.scientificName })
       );
     }
   }
@@ -372,7 +414,7 @@ export class CropSuggestionService {
     progress: number,
     message: string
   ): void {
-    this.socketHandler.cropSuggestion().emitProgressUpdate({ userId, status, progress, message });
+    this.socketHandler.cropSuggestion().emitProgress({ userId, status, progress, message });
   }
 
   /**
