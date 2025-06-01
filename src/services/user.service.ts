@@ -23,9 +23,11 @@ export class UserService {
 
   public static async findUserById(
     userId: string
-  ): Promise<Pick<IUser, 'role' | 'email' | 'name' | '_id' | 'farm'>> {
+  ): Promise<Pick<IUser, 'role' | 'email' | 'name' | '_id' | 'appPreferences' | 'profileImage'>> {
     try {
-      const user = await User.findById(userId).select('_id role name email farm');
+      const user = await User.findById(userId).select(
+        '_id role name email profileImage appPreferences'
+      );
 
       if (!user) {
         throw new Error('User not found');
@@ -38,7 +40,21 @@ export class UserService {
       );
     }
   }
-  public static async getProfile(userId: string): Promise<Omit<IUser, 'password' | '__v'>> {
+  public static async getProfile(
+    userId: string
+  ): Promise<
+    Omit<
+      IUser,
+      | 'password'
+      | '__v'
+      | 'createdAt'
+      | 'updatedAt'
+      | 'email'
+      | 'profileImage'
+      | 'bannerImage'
+      | 'activities'
+    >
+  > {
     try {
       const user = await User.findById(userId).select('-password -__v');
 

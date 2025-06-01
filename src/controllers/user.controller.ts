@@ -21,11 +21,7 @@ export class UserController {
       res.status(200).json({
         success: true,
         message: 'User data fetch successfully',
-        user: {
-          _id: refreshedUser._id,
-          email: refreshedUser.email,
-          name: refreshedUser.name,
-        },
+        user: refreshedUser,
       });
     } catch (error) {
       this.logger.error(`Error in refreshUser: ${error instanceof Error && error.message}`);

@@ -12,58 +12,69 @@ export class DiseaseDetectionController {
     this.diseaseDetectionService = new DiseaseDetectionService();
   }
 
-  public detectDisease = (req: Request, res: Response, _next: NextFunction): void => {
-    if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
-    if (!req.file?.filename) throw new BadRequestError('No image file uploaded');
-
-    res.status(200).json({
-      message: 'Disease detection request received',
-      success: true,
-    });
-
-    this.logger.info('Disease detection request received in DiseaseDetectionController');
-
+  public detectDisease = (req: Request, res: Response, next: NextFunction): void => {
     try {
-      this.diseaseDetectionService.detectDisease({
-        userId: req.user?._id,
-        cropName: req.body.cropName,
-        description: req.body.description,
-        image: req.file,
+      if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
+      if (!req.file?.filename) throw new BadRequestError('No image file uploaded');
+
+      res.status(200).json({
+        message: 'Disease detection request received',
+        success: true,
       });
+
+      this.logger.info('Disease detection request received in DiseaseDetectionController');
+
+      try {
+        this.diseaseDetectionService.detectDisease({
+          userId: req.user?._id,
+          cropName: req.body.cropName,
+          description: req.body.description,
+          image: req.file,
+        });
+      } catch (error) {
+        this.logger.logError(error as Error, 'Getting error from diseaseDetectionService file');
+      }
     } catch (error) {
-      this.logger.logError(error as Error, 'Getting error from diseaseDetectionService file');
+      next(error);
     }
   };
-  public getSpecificDetectedDiseaseResult = async (
+  public getSingleResult = async (
     req: Request,
     res: Response,
-    _next: NextFunction
+    next: NextFunction
   ): Promise<void> => {
-    if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
-    if (req.params?.id) throw new BadRequestError('Resource not found');
-    const result = await this.diseaseDetectionService.getSingleResult(req.user._id, req.params.id);
-    res.status(200).json({
-      success: true,
-      message: 'Result fetched successfully',
-      data: result,
-    });
+    try {
+      if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
+      if (req.params?.id) throw new BadRequestError('Resource not found');
+      const result = await this.diseaseDetectionService.getSingleResult(
+        req.user._id,
+        req.params.id
+      );
+      res.status(200).json({
+        success: true,
+        message: 'Result fetched successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
   };
-  public getUserDetectedDiseaseHistories = async (
-    req: Request,
-    res: Response,
-    _next: NextFunction
-  ): Promise<void> => {
-    if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
+  public getHistories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
 
-    const histories = await this.diseaseDetectionService.getPaginatedHistory(
-      req.user._id,
-      req.body.limit,
-      req.body.page
-    );
-    res.status(200).json({
-      success: true,
-      message: 'History fetched successfully',
-      data: histories,
-    });
+      const histories = await this.diseaseDetectionService.getPaginatedHistory(
+        req.user._id,
+        req.body.limit,
+        req.body.page
+      );
+      res.status(200).json({
+        success: true,
+        message: 'History fetched successfully',
+        data: histories,
+      });
+    } catch (error) {
+      next(error);
+    }
   };
 }

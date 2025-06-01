@@ -345,7 +345,7 @@ export class DiseaseDetectionService {
     status: DiseaseDetectionStatus,
     progress: number,
     message: string
-  ): void => this.socketHndlr().emitProgressUpdate({ userId, status, progress, message });
+  ): Promise<void> => this.socketHndlr().emitProgressUpdate({ userId, status, progress, message });
 
   private socketHndlr(): DiseaseDetectionSocketHandler {
     return this.socket.diseaseDetection();

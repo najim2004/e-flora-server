@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import Logger from '../utils/logger';
-import { UnauthorizedError } from '../utils/errors';
+import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import { CropSuggestionService } from '../services/cropSuggestion.service';
 
 export class CropSuggestionController {
@@ -13,7 +13,7 @@ export class CropSuggestionController {
   public async generateCropSuggestion(
     req: Request,
     res: Response,
-    _next: NextFunction
+    next: NextFunction
   ): Promise<void> {
     try {
       const userId = req.user?._id;
@@ -25,6 +25,45 @@ export class CropSuggestionController {
       this.cropSuggestionService.generateCropSuggestion(req.body, userId);
     } catch (error) {
       this.logger.logError(error as Error, 'CropSuggestionController');
+      next(error);
+    }
+  }
+
+  public async getSingleResult(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?._id;
+      if (!userId) throw new UnauthorizedError('User not authenticated');
+      const result = await this.cropSuggestionService.getOneHistory(req.params.id);
+      if (!result) throw new NotFoundError('Not result found');
+      res.status(200).json({
+        message: 'Result fetched successfully',
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      this.logger.logError(error as Error, 'CropSuggestionController');
+      next(error);
+    }
+  }
+  public async getHistories(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?._id;
+      if (!userId) throw new UnauthorizedError('User not authenticated');
+      if (req.params?.id) throw new BadRequestError('Resource not found');
+      const result = await this.cropSuggestionService.getHistories(
+        userId,
+        req.body.limit,
+        req.body.page
+      );
+      if (!result) throw new NotFoundError('Not result found');
+      res.status(200).json({
+        message: 'Result fetched successfully',
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      this.logger.logError(error as Error, 'CropSuggestionController');
+      next(error);
     }
   }
 }

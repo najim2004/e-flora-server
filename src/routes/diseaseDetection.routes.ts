@@ -39,13 +39,13 @@ export class DiseaseDetectionRoutes {
       '/disease-detection/result/:id',
       authMiddleware,
       ValidationMiddleware.validateParams(DiseaseDetectionValidation.resultParam),
-      this.diseaseDetectionController.getSpecificDetectedDiseaseResult
+      this.diseaseDetectionController.getSingleResult
     );
     this.router.post(
       '/disease-detection/histories',
       authMiddleware,
       ValidationMiddleware.validateParams(DiseaseDetectionValidation.historiesQuery),
-      this.diseaseDetectionController.getUserDetectedDiseaseHistories
+      this.diseaseDetectionController.getHistories
     );
   }
 
