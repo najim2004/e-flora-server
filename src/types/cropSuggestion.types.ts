@@ -22,5 +22,7 @@ export interface CropSuggestionProgressUpdate {
 
 export interface CropSuggestionOutput extends CropSuggestionInput {
   _id: string;
-  recommendations: Omit<ICropRecommendations, 'createdAt' | 'updatedAt' | '_id'> & { _id: string };
+  recommendations: Pick<ICropRecommendations, 'crops' | 'weathers' | 'cultivationTips'> & {
+    _id: string;
+  };
 }

@@ -39,7 +39,7 @@ export class CropSuggestionService {
           await this.saveHistory({
             ...input,
             cacheKey: key,
-            userId: new Types.ObjectId(userId),
+            userId,
             cropRecommendationsId: cached.recs._id,
           })
         );
@@ -139,7 +139,7 @@ export class CropSuggestionService {
         {
           ...input,
           cacheKey: key,
-          userId: new Types.ObjectId(uid),
+          userId: uid,
           cropRecommendationsId: recs._id,
         },
         session
@@ -223,8 +223,16 @@ export class CropSuggestionService {
   }
 
   private async saveHistory(
-    data: Omit<ICropSuggestionHistory, 'createdAt' | 'updatedAt' | '_id'> & {
-      userId: string | Types.ObjectId;
+    data: Pick<
+      ICropSuggestionHistory,
+      | 'cacheKey'
+      | 'soilType'
+      | 'location'
+      | 'farmSize'
+      | 'irrigationAvailability'
+      | 'cropRecommendationsId'
+    > & {
+      userId: string;
     },
     session?: mongoose.ClientSession
   ): Promise<
@@ -276,7 +284,7 @@ export class CropSuggestionService {
 
   private emitDone(
     userId: string,
-    recs: ICropRecommendations,
+    recs: Pick<ICropRecommendations, 'crops' | 'weathers' | 'cultivationTips' | '_id'>,
     hist: Pick<
       ICropSuggestionHistory,
       '_id' | 'soilType' | 'location' | 'farmSize' | 'irrigationAvailability'
