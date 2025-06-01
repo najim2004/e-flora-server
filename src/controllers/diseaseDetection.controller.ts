@@ -41,10 +41,7 @@ export class DiseaseDetectionController {
   ): Promise<void> => {
     if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
     if (req.params?.id) throw new BadRequestError('Resource not found');
-    const result = await this.diseaseDetectionService.getDetectionHistoryResult(
-      req.user._id,
-      req.params.id
-    );
+    const result = await this.diseaseDetectionService.getSingleResult(req.user._id, req.params.id);
     res.status(200).json({
       success: true,
       message: 'Result fetched successfully',
@@ -58,7 +55,7 @@ export class DiseaseDetectionController {
   ): Promise<void> => {
     if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
 
-    const histories = await this.diseaseDetectionService.getUserDetectionHistory(
+    const histories = await this.diseaseDetectionService.getPaginatedHistory(
       req.user._id,
       req.body.limit,
       req.body.page

@@ -3,7 +3,7 @@ import { DiseaseDetection } from '../models/diseaseDetection.model';
 import { DiseaseDetectionHistory } from '../models/diseaseDetectionHistory.model';
 import Logger from '../utils/logger';
 import {
-  DiseaseDetectionResultPayload,
+  DiseaseDetectionStatus,
   InputDetectDisease,
   OutputDetectDisease,
 } from '../types/diseaseDetection.type';
@@ -14,363 +14,292 @@ import mongoose, { PipelineStage, Types } from 'mongoose';
 import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.interface';
 import { SocketServer } from '../socket.server';
 import { IDiseaseDetection } from '../interfaces/diseaseDetection.interface';
+import { DiseaseDetectionSocketHandler } from '../socket/diseaseDetection.socket';
 
 export class DiseaseDetectionService {
-  private diseaseDetectionModel = DiseaseDetection;
-  private diseaseDetectionModelHistory = DiseaseDetectionHistory;
   private logger: Logger;
   private gemini = gemini;
-  private uploadUtil: FileUploadUtil;
-  private socketHandler: SocketServer;
-
-  private static prompts = DiseaseDetectionPrompt;
-
+  private uploader: FileUploadUtil;
+  private socket: SocketServer;
   constructor() {
     this.logger = Logger.getInstance('DiseaseDetection');
-    this.uploadUtil = new FileUploadUtil('temp-uploads', 5, [
-      'image/jpeg',
-      'image/png',
-      'image/jpg',
-    ]);
-    this.socketHandler = SocketServer.getInstance();
+    this.uploader = new FileUploadUtil('temp-uploads', 5, ['image/jpeg', 'image/png', 'image/jpg']);
+    this.socket = SocketServer.getInstance();
   }
-
   public async detectDisease(input: InputDetectDisease): Promise<void> {
     const session = await mongoose.startSession();
     session.startTransaction();
-
     const { userId, cropName, description, image } = input;
-    let uploadedFileId: string | undefined;
+    let uploadedId: string | undefined;
 
     try {
-      // Step 1: Initialize and emit progress
-      this.socketHandler.diseaseDetection().emitProgressUpdate({
-        userId,
-        status: 'initiated',
-        progress: 5,
-        message: 'Starting detection process...',
-      });
-      this.logger.debug(`Step 1: Detection initiated for user: ${userId}, crop: ${cropName}`);
+      this.emitProgress(userId, 'initiated', 5, 'Starting detection process...');
 
-      // Step 2: Check for existing successful detection history by cropName
-      const existingDetectionByCropName = await this.getDiseaseDetailsByCropName(cropName, session);
-      if (existingDetectionByCropName) {
-        this.logger.debug(
-          `Step 2: Existing detection found by crop name for user: ${userId}, crop: ${cropName}`
-        );
-        const newHistory = await this.createNewHistory(
+      const byName = await this.getByCropName(cropName, session);
+      if (byName)
+        return await this.finalize(
           userId,
-          cropName,
-          description,
-          image,
-          existingDetectionByCropName._id,
-          session
+          image.path,
+          await this.addHistory(userId, cropName, description, image, byName._id, session),
+          session,
+          'Detection completed using existing data.'
         );
-        await session.commitTransaction();
-        this.socketHandler.diseaseDetection().emitProgressUpdate({
+
+      this.emitProgress(userId, 'analyzing', 20, 'Analyzing image and generating embeddings...');
+      const { diseaseName, embedded } = await this.detectAndEmbed(cropName, image, description);
+
+      const byEmbed = await this.getByEmbedding(diseaseName, embedded, session);
+      if (byEmbed)
+        return await this.finalize(
           userId,
-          status: 'completed',
-          progress: 100,
-          message: 'Detection completed using existing data.',
-        });
-        this.uploadUtil.deleteFile(image.path);
-        this.socketHandler.diseaseDetection().emitFinalResult(userId, {
-          resultId: newHistory._id.toString(),
-        });
-        return;
-      }
-
-      // Step 3: Analyze image and generate embeddings
-      this.socketHandler.diseaseDetection().emitProgressUpdate({
-        userId,
-        status: 'analyzing',
-        progress: 20,
-        message: 'Analyzing image and generating embeddings...',
-      });
-      this.logger.debug(
-        `Step 3: No existing detection by crop name. Analyzing image for ${cropName}.`
-      );
-
-      const { diseaseName, embedded } = await this.detectDiseaseAndMakeNewEmbedding(
-        cropName,
-        image,
-        description
-      );
-      if (!embedded || !diseaseName || embedded.length === 0) {
-        throw new Error('Failed to detect disease name or generate embedding from AI.');
-      }
-      this.logger.debug(`Step 3: Disease name detected: "${diseaseName}" for crop: ${cropName}`);
-
-      // Step 4: Check for existing disease based on generated embedding (semantic search)
-      const existingDetectionByEmbedding = await this.getDiseaseDetailsByEmbedding(
-        diseaseName,
-        embedded,
-        session
-      );
-      if (existingDetectionByEmbedding) {
-        this.logger.debug(
-          `Step 4: Existing detection found by embedding for user: ${userId}, disease: ${diseaseName}`
+          image.path,
+          await this.addHistory(userId, cropName, description, image, byEmbed._id, session),
+          session,
+          'Detection completed using existing embedded data.'
         );
-        const newHistory = await this.createNewHistory(
-          userId,
-          cropName,
-          description,
-          image,
-          existingDetectionByEmbedding._id,
-          session
-        );
-        await session.commitTransaction();
-        this.socketHandler.diseaseDetection().emitProgressUpdate({
-          userId,
-          status: 'completed',
-          progress: 100,
-          message: 'Detection completed using existing embedded data.',
-        });
-        this.uploadUtil.deleteFile(image.path);
-        this.socketHandler.diseaseDetection().emitFinalResult(userId, {
-          resultId: newHistory._id.toString(),
-        });
-        return;
-      }
 
-      // Step 5: Generate full details for a new detected disease
-      this.socketHandler.diseaseDetection().emitProgressUpdate({
-        userId,
-        status: 'generatingData',
-        progress: 60,
-        message: 'Generating new disease details...',
-      });
-      this.logger.debug(
-        `Step 5: No existing detection by embedding. Generating new details for ${diseaseName}.`
-      );
+      this.emitProgress(userId, 'generatingData', 60, 'Generating new disease details...');
+      const newDetails = await this.generateDetails(diseaseName, cropName, description);
+      const [saved] = await DiseaseDetection.create([{ ...newDetails, embedded }], { session });
 
-      const newDiseaseDetails = await this.generateFullDetailsOfNewDetectedDisease(
-        diseaseName,
-        cropName,
-        description
-      );
-      this.logger.debug(`Step 5: Generated new disease details for: ${diseaseName}`);
-
-      // Step 6: Save the new disease details to the main Disease Detection Model
-      const savedNewDisease = await this.diseaseDetectionModel.create(
-        [{ ...newDiseaseDetails, embedded }],
-        { session }
-      );
-      if (!savedNewDisease || savedNewDisease.length === 0) {
-        throw new Error('Failed to save new disease details to database.');
-      }
-      const newDiseaseId = savedNewDisease[0]._id;
-      this.logger.debug(`Step 6: New disease details saved with ID: ${newDiseaseId}`);
-
-      // Step 7: Create a new history entry
-      this.socketHandler.diseaseDetection().emitProgressUpdate({
-        userId,
-        status: 'savingToDB',
-        progress: 80,
-        message: 'Saving detection history...',
-      });
-      this.logger.debug(
-        `Step 7: Creating new history entry for ${userId} with disease ID ${newDiseaseId}.`
-      );
-
-      const newHistory = await this.createNewHistory(
+      this.emitProgress(userId, 'savingToDB', 80, 'Saving detection history...');
+      const history = await this.addHistory(
         userId,
         cropName,
         description,
         image,
-        newDiseaseId,
+        saved._id,
         session
       );
-      await session.commitTransaction();
-
-      // Step 8: Finalize and emit result
-      this.socketHandler.diseaseDetection().emitProgressUpdate({
+      await this.finalize(
         userId,
-        status: 'completed',
-        progress: 100,
-        message: 'New disease detected and history saved.',
-      });
-      this.uploadUtil.deleteFile(image.path);
-      this.socketHandler.diseaseDetection().emitFinalResult(userId, {
-        resultId: newHistory._id.toString(),
-      });
-      this.logger.debug(`Step 8: Detection completed successfully for user: ${userId}.`);
-      return;
-    } catch (error) {
-      await session.abortTransaction();
-      this.logger.logError(
-        error as Error,
-        `Detection failed for user ${userId} and crop ${cropName}`
+        image.path,
+        history,
+        session,
+        'New disease detected and history saved.'
       );
-      this.socketHandler
-        .diseaseDetection()
-        .emitError(
-          userId,
-          `Disease detection failed: ${(error as Error).message || 'Unknown error'}`
-        );
-
-      if (image?.path) {
-        this.uploadUtil.deleteFile(image.path);
-      }
-      if (uploadedFileId) {
-        await imageKitUtil.deleteImage(uploadedFileId);
-      }
+    } catch (e) {
+      await session.abortTransaction();
+      this.logger.logError(e as Error, `Detection failed for ${input.userId}, ${input.cropName}`);
+      this.socketHndlr().emitError(input.userId, `Failed: ${(e as Error).message}`);
+      if (image?.path) this.uploader.deleteFile(image.path);
+      if (uploadedId) await imageKitUtil.deleteImage(uploadedId);
     } finally {
       session.endSession();
     }
   }
 
-  private async getDiseaseDetailsByCropName(
-    cropName: string,
-    session: mongoose.ClientSession
-  ): Promise<IDiseaseDetection | null> {
-    this.logger.debug(`Checking for existing disease details by crop name: ${cropName}`);
-    const history = await this.diseaseDetectionModelHistory
-      .findOne({
-        cropName,
-        'detectedDisease.status': 'success',
-      })
-      .select('detectedDisease.id')
-      .populate({
-        path: 'detectedDisease.id',
-        select: '-__v -createdAt -updatedAt -embedded',
-      })
-      .session(session)
-      .exec();
-
-    if (history?.detectedDisease?.id) {
-      this.logger.debug(`Found disease details in history for crop: ${cropName}`);
-      return history.detectedDisease.id as IDiseaseDetection;
-    }
-
-    const detectedDisease = await this.diseaseDetectionModel
-      .findOne({ cropName })
-      .select('-__v -createdAt -updatedAt -embedded')
-      .session(session)
-      .exec();
-
-    if (detectedDisease) {
-      this.logger.debug(`Found disease details in main model for crop: ${cropName}`);
-    } else {
-      this.logger.debug(`No existing disease details found for crop: ${cropName}`);
-    }
-    return detectedDisease;
+  private async finalize(
+    userId: string,
+    path: string,
+    history: IDiseaseDetectionHistory,
+    session: mongoose.ClientSession,
+    message: string
+  ): Promise<void> {
+    await session.commitTransaction();
+    this.uploader.deleteFile(path);
+    this.emitProgress(userId, 'completed', 100, message);
+    this.socketHndlr().emitFinalResult(userId, { resultId: history._id.toString() });
   }
 
-  private async detectDiseaseAndMakeNewEmbedding(
-    cropName: string,
-    image: Express.Multer.File,
-    description?: string
+  private async getByCropName(
+    name: string,
+    session: mongoose.ClientSession
+  ): Promise<Pick<
+    IDiseaseDetection,
+    | '_id'
+    | 'cropName'
+    | 'description'
+    | 'diseaseName'
+    | 'symptoms'
+    | 'treatment'
+    | 'causes'
+    | 'preventiveTips'
+  > | null> {
+    const h = await DiseaseDetectionHistory.findOne({
+      cropName: name,
+      'detectedDisease.status': 'success',
+    })
+      .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
+      .session(session)
+      .exec();
+    return h?.detectedDisease?.id
+      ? { ...h?.detectedDisease?.id.toObject(), _id: h?.detectedDisease?.id._id }
+      : DiseaseDetection.findOne({ cropName: name })
+          .select('-__v -createdAt -updatedAt -embedded')
+          .session(session);
+  }
+
+  private async detectAndEmbed(
+    name: string,
+    img: Express.Multer.File,
+    desc?: string
   ): Promise<{ diseaseName: string; embedded: number[] }> {
-    this.logger.debug(`Detecting disease name and generating embedding for crop: ${cropName}`);
+    const prompt = DiseaseDetectionPrompt.getDiseaseNameGettingPrompt(name, desc);
+    const disease = await this.gemini.generateResponseWithImage(prompt, {
+      path: img.path,
+      mimeType: img.mimetype,
+    });
+    if (!disease || ['ERROR_INVALID_IMAGE', 'NO_DISEASE_DETECTED'].includes(disease))
+      throw new Error('Image not valid or no disease detected.');
+    const embedded = await this.gemini.generateEmbedding(disease);
+    if (!embedded.length) throw new Error('Embedding generation failed.');
+    return { diseaseName: disease, embedded };
+  }
+
+  private async getByEmbedding(
+    name: string,
+    embed: number[],
+    session: mongoose.ClientSession
+  ): Promise<Pick<
+    IDiseaseDetection,
+    | '_id'
+    | 'cropName'
+    | 'description'
+    | 'diseaseName'
+    | 'symptoms'
+    | 'treatment'
+    | 'causes'
+    | 'preventiveTips'
+    | 'embedded'
+  > | null> {
+    const results = await DiseaseDetectionService.search(name, session);
+    if (!results.length) return null;
+    return DiseaseDetectionService.findBestMatch(results, embed);
+  }
+
+  private async addHistory(
+    userId: string,
+    crop: string,
+    desc: string | undefined,
+    img: Express.Multer.File,
+    diseaseId: Types.ObjectId,
+    session: mongoose.ClientSession
+  ): Promise<IDiseaseDetectionHistory> {
+    let uploaded;
     try {
-      const prompt = DiseaseDetectionService.prompts.getDiseaseNameGettingPrompt(
-        cropName,
-        description
+      uploaded = await this.uploadImage(img);
+      this.uploader.deleteFile(img.path);
+      const [h] = await DiseaseDetectionHistory.create(
+        [
+          {
+            userId,
+            cropName: crop,
+            description: desc,
+            detectedDisease: { status: 'success', id: diseaseId },
+            image: uploaded,
+          },
+        ],
+        { session }
       );
-      const detectedDiseaseName = await this.gemini.generateResponseWithImage(prompt, {
-        path: image.path,
-        mimeType: image.mimetype,
-      });
-
-      if (!detectedDiseaseName || detectedDiseaseName === 'ERROR_INVALID_IMAGE') {
-        throw new Error('Image processing failed or invalid image.');
-      } else if (detectedDiseaseName === 'NO_DISEASE_DETECTED') {
-        throw new Error('No specific disease detected for the provided image and description.');
-      }
-
-      const generatedEmbedding = await this.gemini.generateEmbedding(detectedDiseaseName);
-      if (!generatedEmbedding || generatedEmbedding.length === 0) {
-        throw new Error('Failed to generate embedding for the detected disease name.');
-      }
-      this.logger.debug(`Disease name "${detectedDiseaseName}" detected and embedding generated.`);
-      return { diseaseName: detectedDiseaseName, embedded: generatedEmbedding };
-    } catch (error) {
-      this.logger.logError(
-        error as Error,
-        'Error during Gemini AI interaction for disease detection/embedding.'
-      );
-      throw error;
+      return h;
+    } catch (err) {
+      if (uploaded?.id) await imageKitUtil.deleteImage(uploaded.id);
+      this.logger.logError(err as Error, 'Error saving history.');
+      throw err;
     }
   }
 
-  private async getDiseaseDetailsByEmbedding(
-    diseaseName: string,
-    queryEmbedding: number[],
-    session: mongoose.ClientSession
-  ): Promise<IDiseaseDetection | null> {
-    this.logger.debug(`Searching for existing disease by embedding for disease: ${diseaseName}`);
-    try {
-      const allDetectedDiseaseWithRelatedThisKeyWord = await DiseaseDetectionService.search(
-        diseaseName,
-        session
-      );
-      this.logger.debug(
-        `Search returned ${allDetectedDiseaseWithRelatedThisKeyWord?.length} results.`
-      );
-      if (allDetectedDiseaseWithRelatedThisKeyWord.length > 0) {
-        const bestMatchedDisease = DiseaseDetectionService.findBestMatch(
-          allDetectedDiseaseWithRelatedThisKeyWord,
-          queryEmbedding
-        );
-        if (bestMatchedDisease) {
-          this.logger.debug(`Best match found by embedding: ${bestMatchedDisease.diseaseName}`);
-        } else {
-          this.logger.debug('No sufficiently similar disease found by embedding.');
-        }
-        return bestMatchedDisease;
-      }
-      this.logger.debug('No related keywords found for embedding search.');
-      return null;
-    } catch (error) {
-      this.logger.logError(error as Error, 'Error checking existing disease with embedded data.');
-      throw error;
-    }
+  private async generateDetails(
+    name: string,
+    crop: string,
+    desc?: string
+  ): Promise<OutputDetectDisease> {
+    const prompt = DiseaseDetectionPrompt.getNewDiseaseDetectionGeneratingPrompt(name, crop, desc);
+    const json = await this.gemini.generateResponse(prompt);
+    if (!json) throw new Error('AI failed to generate details.');
+    const parsed = JSON.parse(json);
+    if (!parsed.diseaseName || !parsed.symptoms || !parsed.treatment)
+      throw new Error('Incomplete disease data.');
+    return parsed;
+  }
+
+  private async uploadImage(image: Express.Multer.File): Promise<{ url: string; id: string }> {
+    const upload = await imageKitUtil.uploadImage(
+      image.path,
+      image.originalname,
+      'disease-detection'
+    );
+    if (!upload.url || !upload.fileId) throw new Error('Upload failed.');
+    return { url: upload.url, id: upload.fileId };
   }
 
   private static findBestMatch(
-    dataArray: IDiseaseDetection[],
-    queryEmbedding: number[]
-  ): IDiseaseDetection | null {
-    if (!dataArray.length) return null;
-
-    let bestMatch: IDiseaseDetection | null = null;
-    let bestScore = -Infinity;
-
-    for (const data of dataArray) {
-      if (!data.embedded || data.embedded.length !== queryEmbedding.length) continue;
-      const score = GeminiUtils.calculateCosineSimilarity(queryEmbedding, data.embedded);
-      Logger.getInstance('DiseaseDetection').debug(
-        `Cosine similarity score for "${data.diseaseName}": ${score}`
-      );
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = data;
-      }
-    }
-    return bestMatch;
+    data: Pick<
+      IDiseaseDetection,
+      | '_id'
+      | 'cropName'
+      | 'description'
+      | 'diseaseName'
+      | 'symptoms'
+      | 'treatment'
+      | 'causes'
+      | 'preventiveTips'
+      | 'embedded'
+    >[],
+    query: number[]
+  ): Pick<
+    IDiseaseDetection,
+    | '_id'
+    | 'cropName'
+    | 'description'
+    | 'diseaseName'
+    | 'symptoms'
+    | 'treatment'
+    | 'causes'
+    | 'preventiveTips'
+    | 'embedded'
+  > | null {
+    return data.reduce<{
+      doc: Pick<
+        IDiseaseDetection,
+        | '_id'
+        | 'cropName'
+        | 'description'
+        | 'diseaseName'
+        | 'symptoms'
+        | 'treatment'
+        | 'causes'
+        | 'preventiveTips'
+        | 'embedded'
+      > | null;
+      score: number;
+    }>(
+      (best, curr) => {
+        const score = GeminiUtils.calculateCosineSimilarity(query, curr.embedded || []);
+        return score > best.score ? { doc: curr, score } : best;
+      },
+      { doc: null, score: -Infinity }
+    ).doc;
   }
 
   static async search(
     query: string,
     session: mongoose.ClientSession
-  ): Promise<IDiseaseDetection[]> {
-    const tokens = this.tokenize(query);
-    if (tokens.length === 0) {
-      Logger.getInstance('DiseaseDetection').debug('No tokens to search for.');
-      return [];
-    }
-    Logger.getInstance('DiseaseDetection').debug(`Searching with tokens: ${tokens.join(', ')}`);
+  ): Promise<
+    Pick<
+      IDiseaseDetection,
+      | '_id'
+      | 'cropName'
+      | 'description'
+      | 'diseaseName'
+      | 'symptoms'
+      | 'treatment'
+      | 'causes'
+      | 'preventiveTips'
+      | 'embedded'
+    >[]
+  > {
+    const tokens = query.toLowerCase().split(/\s+/);
+    if (!tokens.length) return [];
 
-    const $or: NonNullable<PipelineStage.Match['$match']>['$or'] = tokens.flatMap(token => [
-      { diseaseName: { $regex: token, $options: 'i' } },
-      { cropName: { $regex: token, $options: 'i' } },
-      { description: { $regex: token, $options: 'i' } },
-      { symptoms: { $elemMatch: { $regex: token, $options: 'i' } } },
-      { causes: { $elemMatch: { $regex: token, $options: 'i' } } },
-      { treatment: { $elemMatch: { $regex: token, $options: 'i' } } },
-      { preventiveTips: { $elemMatch: { $regex: token, $options: 'i' } } },
+    const $or = tokens.flatMap(t => [
+      { diseaseName: { $regex: t, $options: 'i' } },
+      { cropName: { $regex: t, $options: 'i' } },
+      { description: { $regex: t, $options: 'i' } },
+      ...['symptoms', 'causes', 'treatment', 'preventiveTips'].map(f => ({
+        [f]: { $elemMatch: { $regex: t, $options: 'i' } },
+      })),
     ]);
 
     const concatFields = [
@@ -380,9 +309,9 @@ export class DiseaseDetectionService {
       ' ',
       { $ifNull: ['$description', ''] },
       ' ',
-      ...['symptoms', 'causes', 'treatment', 'preventiveTips'].map(field => ({
+      ...['symptoms', 'causes', 'treatment', 'preventiveTips'].map(f => ({
         $reduce: {
-          input: { $ifNull: [`$${field}`, []] },
+          input: { $ifNull: [`$${f}`, []] },
           initialValue: '',
           in: { $concat: ['$$value', ' ', '$$this'] },
         },
@@ -394,15 +323,9 @@ export class DiseaseDetectionService {
       {
         $addFields: {
           matchScore: {
-            $sum: tokens.map(token => ({
+            $sum: tokens.map(t => ({
               $cond: [
-                {
-                  $regexMatch: {
-                    input: { $concat: concatFields },
-                    regex: token,
-                    options: 'i',
-                  },
-                },
+                { $regexMatch: { input: { $concat: concatFields }, regex: t, options: 'i' } },
                 1,
                 0,
               ],
@@ -412,224 +335,48 @@ export class DiseaseDetectionService {
       },
       { $match: { matchScore: { $gt: 0 } } },
       { $sort: { matchScore: -1 } },
-      {
-        $project: {
-          matchScore: 0,
-          __v: 0,
-          createdAt: 0,
-          updatedAt: 0,
-        },
-      },
+      { $project: { matchScore: 0, __v: 0, createdAt: 0, updatedAt: 0 } },
     ];
 
-    const result = await DiseaseDetection.aggregate(aggregation).session(session);
-    return result;
+    return await DiseaseDetection.aggregate(aggregation).session(session).exec();
   }
-
-  private async uploadImage(image: Express.Multer.File): Promise<{ url: string; id: string }> {
-    this.logger.debug(`Attempting to upload image: ${image.originalname}`);
-    try {
-      const uploadResponse = await imageKitUtil.uploadImage(
-        image.path,
-        image.originalname,
-        `disease-detection`
-      );
-      if (!uploadResponse.url || !uploadResponse.fileId) {
-        throw new Error('ImageKit upload failed: Missing URL or File ID.');
-      }
-      this.logger.debug(`Image uploaded to ImageKit. URL: ${uploadResponse.url}`);
-      return {
-        url: uploadResponse.url,
-        id: uploadResponse.fileId,
-      };
-    } catch (error) {
-      this.logger.logError(error as Error, 'Error uploading image to ImageKit.');
-      throw new Error(`Image upload failed: ${(error as Error).message || 'Unknown error'}`);
-    }
-  }
-
-  private async createNewHistory(
+  private emitProgress = (
     userId: string,
-    cropName: string,
-    description: string | undefined,
-    image: Express.Multer.File,
-    detectedDiseaseId: Types.ObjectId,
-    session: mongoose.ClientSession
-  ): Promise<IDiseaseDetectionHistory> {
-    this.logger.debug(
-      `Creating new history entry for user: ${userId}, disease ID: ${detectedDiseaseId}`
-    );
-    let uploadedImageData: { url: string; id: string } | undefined;
-    try {
-      uploadedImageData = await this.uploadImage(image);
-      this.uploadUtil.deleteFile(image.path);
+    status: DiseaseDetectionStatus,
+    progress: number,
+    message: string
+  ): void => this.socketHndlr().emitProgressUpdate({ userId, status, progress, message });
 
-      const newHistoryEntry = await this.diseaseDetectionModelHistory.create(
-        [
-          {
-            userId,
-            cropName,
-            description,
-            detectedDisease: {
-              status: 'success',
-              id: detectedDiseaseId,
-            },
-            image: uploadedImageData,
-          },
-        ],
-        { session }
-      );
-
-      if (!newHistoryEntry || newHistoryEntry.length === 0) {
-        throw new Error('Failed to create disease history record.');
-      }
-      this.logger.debug(
-        `New disease history created for user: ${userId}, disease: ${detectedDiseaseId}`
-      );
-      return newHistoryEntry[0];
-    } catch (error) {
-      if (uploadedImageData?.id) {
-        await imageKitUtil.deleteImage(uploadedImageData.id);
-        this.logger.warn(
-          `Cleaned up ImageKit file ${uploadedImageData.id} due to history creation failure.`
-        );
-      }
-      this.logger.logError(error as Error, 'Error creating new disease history.');
-      throw error;
-    }
+  private socketHndlr(): DiseaseDetectionSocketHandler {
+    return this.socket.diseaseDetection();
   }
 
-  private async generateFullDetailsOfNewDetectedDisease(
-    diseaseName: string,
-    cropName: string,
-    description?: string
-  ): Promise<OutputDetectDisease> {
-    this.logger.debug(`Generating full details for new disease: ${diseaseName}`);
-    try {
-      const prompt = DiseaseDetectionPrompt.getNewDiseaseDetectionGeneratingPrompt(
-        diseaseName,
-        cropName,
-        description
-      );
-      const newDetailsJson = await this.gemini.generateResponse(prompt);
-      if (!newDetailsJson) {
-        throw new Error('Gemini failed to generate disease details response.');
-      }
-
-      const parsedData: OutputDetectDisease = JSON.parse(newDetailsJson);
-      if (!parsedData.diseaseName || !parsedData.symptoms || !parsedData.treatment) {
-        throw new Error('Generated disease details are incomplete or invalid.');
-      }
-      this.logger.debug(`Successfully generated full details for ${diseaseName}.`);
-      return parsedData;
-    } catch (error) {
-      this.logger.logError(
-        error as Error,
-        'Error generating full details of new detected disease.'
-      );
-      throw new Error(
-        `Failed to generate disease details: ${(error as Error).message || 'Invalid Gemini response.'}`
-      );
-    }
-  }
-
-  private mapToResultPayload(
-    diseaseDetails: IDiseaseDetection,
-    diseaseHistory: IDiseaseDetectionHistory
-  ): DiseaseDetectionResultPayload {
-    return {
-      _id: diseaseHistory._id.toString(),
-      image: diseaseHistory.image,
-      description: diseaseHistory.description,
-      cropName: diseaseHistory.cropName,
-      diseaseDetails: {
-        _id: diseaseDetails._id.toString(),
-        cropName: diseaseDetails.cropName,
-        diseaseName: diseaseDetails.diseaseName,
-        description: diseaseDetails.description || 'No specific description provided.',
-        symptoms: diseaseDetails.symptoms || [],
-        treatment: diseaseDetails.treatment || [],
-        causes: diseaseDetails.causes || [],
-        preventiveTips: diseaseDetails.preventiveTips || [],
-      },
-    };
-  }
-
-  static tokenize(text: string): string[] {
-    return text.toLowerCase().match(/\w+/g) || [];
-  }
-
-  // Fetch Specific Detection History
-
-  public async getDetectionHistoryResult(
+  public async getSingleResult(
     userId: string,
     historyId: string
-  ): Promise<DiseaseDetectionResultPayload | null> {
-    this.logger.debug(`Fetching history for user: ${userId}, history ID: ${historyId}`);
-    try {
-      const historyEntry = await this.diseaseDetectionModelHistory
-        .findOne({ _id: historyId, userId })
-        .populate({
-          path: 'detectedDisease.id',
-          select: '-__v -createdAt -updatedAt -embedded',
-        })
-        .exec();
-
-      if (!historyEntry) {
-        this.logger.warn(`No history found for user ${userId} with history ID ${historyId}`);
-        return null;
-      }
-
-      if (historyEntry.detectedDisease.status === 'success' && historyEntry.detectedDisease.id) {
-        this.logger.debug(`Found successful history entry for history ID: ${historyId}`);
-        return this.mapToResultPayload(
-          historyEntry.detectedDisease.id as IDiseaseDetection,
-          historyEntry
-        );
-      }
-      this.logger.warn(
-        `Disease detection not successful or disease ID missing for history ID ${historyId}`
-      );
-      return null;
-    } catch (error) {
-      this.logger.logError(
-        error as Error,
-        `Error fetching detection history result for user ${userId}, history ID ${historyId}`
-      );
-      throw new Error(
-        `Failed to retrieve detection history: ${(error as Error).message || 'Unknown error'}`
-      );
-    }
+  ): Promise<IDiseaseDetectionHistory | null> {
+    if (!Types.ObjectId.isValid(historyId)) return null;
+    return await DiseaseDetectionHistory.findOne({ _id: historyId, userId })
+      .select('-__v -createdAt -updatedAt -cacheKey -userId')
+      .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
+      .exec();
   }
 
-  // Get User Detection History
-
-  public async getUserDetectionHistory(
+  public async getPaginatedHistory(
     userId: string,
-    limit: number,
-    page: number
-  ): Promise<IDiseaseDetectionHistory[]> {
-    this.logger.debug(`Fetching history for user: ${userId}, limit: ${limit}, page: ${page}`);
-    try {
-      const skip = (page - 1) * limit;
-
-      const history = await this.diseaseDetectionModelHistory
-        .find({ userId })
+    page = 1,
+    limit = 10
+  ): Promise<{ total: number; histories: IDiseaseDetectionHistory[] }> {
+    const skip = (page - 1) * limit;
+    const [total, histories] = await Promise.all([
+      DiseaseDetectionHistory.countDocuments({ userId }),
+      DiseaseDetectionHistory.find({ userId })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .exec();
-
-      this.logger.debug(`Found ${history.length} history entries for user: ${userId}`);
-      return history as IDiseaseDetectionHistory[];
-    } catch (error) {
-      this.logger.logError(
-        error as Error,
-        `Error fetching user detection history for user ${userId}, limit ${limit}, page ${page}`
-      );
-      throw new Error(
-        `Failed to retrieve user history: ${(error as Error).message || 'Unknown error'}`
-      );
-    }
+        .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
+        .exec(),
+    ]);
+    return { total, histories };
   }
 }
