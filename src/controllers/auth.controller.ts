@@ -4,10 +4,14 @@ import Logger from '../utils/logger';
 import { BadRequestError } from '../utils/errors';
 
 export class AuthController {
-  private static authService = new AuthService();
-  private static logger = Logger.getInstance('Auth');
+  private logger: Logger;
+  private authService: AuthService;
+  constructor() {
+    this.logger = Logger.getInstance('Auth');
+    this.authService = new AuthService();
+  }
 
-  static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Basic validation
       const { name, email, password } = req.body;
@@ -40,7 +44,7 @@ export class AuthController {
     }
   }
 
-  static async login(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Basic validation
       const { email, password } = req.body;
@@ -60,7 +64,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: 31536000,
       });
 
       // Log successful login
@@ -70,10 +74,29 @@ export class AuthController {
       res.status(200).json({
         success: true,
         message: 'User logged in successfully',
-        data: { user },
+        data: user,
       });
     } catch (error) {
       this.logger.error(`Login failed: ${error instanceof Error && error.message}`);
+      next(error);
+    }
+  }
+  public async logout(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Clear the authentication cookie
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+      });
+      this.logger.info(`User logged out successfully`);
+
+      res.status(200).json({
+        success: true,
+        message: 'User logged out successfully',
+      });
+    } catch (error) {
+      this.logger.error(`Logout failed: ${error instanceof Error && error.message}`);
       next(error);
     }
   }

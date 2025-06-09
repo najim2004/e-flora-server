@@ -4,7 +4,11 @@ import { ICropSuggestionCache } from '../interfaces/cropSuggestionCache.interfac
 const CropSuggestionCacheSchema = new Schema<ICropSuggestionCache>(
   {
     cacheKey: { type: String, required: true, unique: true },
-    cropRecommendationsId: { type: Schema.Types.ObjectId, required: true },
+    cropRecommendationsId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CropRecommendations',
+      required: true,
+    },
     expiresAt: {
       type: Date,
       required: true,

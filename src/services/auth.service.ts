@@ -4,12 +4,14 @@ import { BadRequestError, NotFoundError, InternalServerError } from '../utils/er
 import Logger from '../utils/logger';
 import { User } from '../models/user.model';
 import { RegCredentials, LoginCredentials, AuthResponse, TokenPayload } from '../types/auth.types';
+import 'dotenv';
 
 export class AuthService {
-  private readonly JWT_SECRET: string = process.env.JWT_SECRET || 'your-secret-key';
-  private readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-  private logger = Logger.getInstance('Auth');
+  private logger:Logger
   private userModel = User;
+  constructor(){
+    this.logger = Logger.getInstance('Auth')
+  }
 
   public async register(userData: RegCredentials): Promise<boolean> {
     try {
@@ -34,7 +36,7 @@ export class AuthService {
     try {
       const user = await this.userModel
         .findOne({ email: credentials.email })
-        .select('_id name email role password profileImage');
+        .select('_id role name email profileImage appPreferences password');
       if (!user) {
         throw new NotFoundError('User not found');
       }
@@ -67,9 +69,9 @@ export class AuthService {
     try {
       return jwt.sign(
         payload,
-        this.JWT_SECRET as Secret,
+        process.env.JWT_SECRET as Secret,
         {
-          expiresIn: this.JWT_EXPIRES_IN,
+          expiresIn: process.env.JWT_EXPIRES_IN || '31536000',
         } as SignOptions
       );
     } catch (error) {

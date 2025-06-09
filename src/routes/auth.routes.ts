@@ -5,26 +5,32 @@ import { ValidationMiddleware } from '../middlewares/validation.middleware';
 
 export class AuthRouter {
   public router: Router;
+  private readonly authController: AuthController;
   constructor() {
+    this.authController = new AuthController();
     this.router = Router();
     this.initializeRoutes();
   }
 
   private initializeRoutes(): void {
-    // Register endpoint with validation
     this.router.post(
       '/register',
       ValidationMiddleware.validateBody(AuthValidation.register),
-      (req, res, next) => AuthController.register(req, res, next)
+      this.authController.register.bind(this.authController)
     );
 
-    // Login endpoint with validation
     this.router.post(
       '/login',
       ValidationMiddleware.validateBody(AuthValidation.login),
-      (req, res, next) => AuthController.login(req, res, next)
+      this.authController.login.bind(this.authController)
     );
+
+    this.router.post('/logout', this.authController.logout.bind(this.authController));
+  }
+
+  public getRouter(): Router {
+    return this.router;
   }
 }
 
-export const authRouter = new AuthRouter().router;
+export const authRouter = new AuthRouter().getRouter();

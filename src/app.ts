@@ -30,7 +30,12 @@ export class App {
   private initializeMiddlewares(): void {
     // Security middleware
     this.app.use(helmet());
-    this.app.use(cors());
+    this.app.use(
+      cors({
+        origin: 'http://localhost:3000', // Your frontend URL
+        credentials: true,
+      })
+    );
     this.app.use(cookieParser());
     // Request logging
     this.app.use(LoggerMiddleware.requestTracker);
@@ -48,9 +53,9 @@ export class App {
 
   private initializeRoutes(): void {
     this.app.use('/api/v1/auth', authRouter);
-    this.app.use('/api/v1/user', userRouter);
-    this.app.use('/api/v1/crop', cropSuggestionRouter);
-    this.app.use('/api/v1/crop', diseaseDetectionRouter);
+    this.app.use('/api/v1/users', userRouter);
+    this.app.use('/api/v1/crops', cropSuggestionRouter);
+    this.app.use('/api/v1/crops', diseaseDetectionRouter);
 
     // Handle 404
     this.app.use(/(.*)/, (req: Request, res: Response) => {

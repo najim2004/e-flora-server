@@ -13,6 +13,7 @@ import Logger from '../utils/logger';
 import GeminiUtils from '../utils/gemini.utils';
 import { SocketServer } from '../socket.server';
 import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
+import { ICropDetails } from '../interfaces/cropDetails.interface';
 
 export class CropSuggestionService {
   private log: Logger;
@@ -164,8 +165,23 @@ export class CropSuggestionService {
     for (let i = 1; i <= 2; i++) {
       this.emitProgress(uid, 'generatingData', 50 + i * 10, `Generating (Attempt ${i})...`);
       try {
-        const res = JSON.parse((await this.gemini.generateResponse(prompt)) || '{}');
+        // Get raw AI response string
+        let raw = (await this.gemini.generateResponse(prompt)) || '{}';
+
+        // Remove wrapping ```json ... ``` code block if present
+        raw = raw.trim();
+        if (raw.startsWith('```')) {
+          raw = raw
+            .replace(/^```json?\n?/, '')
+            .replace(/```$/, '')
+            .trim();
+        }
+
+        // Parse the cleaned string as JSON
+        const res = JSON.parse(raw);
+
         if (!res?.crops?.length) throw new Error('Invalid response');
+
         const [saved] = await CropRecommendations.create([res]);
         return { ...res, _id: saved._id };
       } catch (e) {
@@ -203,16 +219,29 @@ export class CropSuggestionService {
       const ex = await CropDetails.findOne({
         $or: [{ scientificName: crop.scientificName }, { name: crop.name }],
       }).select('_id slug scientificName');
+
       if (ex) {
         this.emitCropDetail(uid, 'success', ex.scientificName, ex.slug);
         return { ...crop, cropDetails: { status: 'success', id: ex._id, slug: ex.slug } };
       }
-      const res = JSON.parse(
+
+      let raw =
         (await this.gemini.generateResponse(
           this.prompt.getCropDetailsPrompt(crop.name, crop.scientificName)
-        )) || '{}'
-      );
+        )) || '{}';
+
+      // Remove code block wrappers if present
+      raw = raw.trim();
+      if (raw.startsWith('```')) {
+        raw = raw
+          .replace(/^```json?\n?/, '')
+          .replace(/```$/, '')
+          .trim();
+      }
+
+      const res = JSON.parse(raw);
       if (!res?.name) throw new Error('Invalid AI detail');
+
       const saved = await CropDetails.create(res);
       this.emitCropDetail(uid, 'success', saved.scientificName, saved.slug);
       return { ...crop, cropDetails: { status: 'success', id: saved._id, slug: saved.slug } };
@@ -335,5 +364,28 @@ export class CropSuggestionService {
 
   private socketHandler(): CropSuggestionSocketHandler {
     return this.socket.cropSuggestion();
+  }
+
+  public async getCropDetails(slug: string): Promise<ICropDetails | null> {
+    if (!slug) {
+      this.log.warn('getCropDetails called with empty slug');
+      return null;
+    }
+
+    try {
+      const details = await CropDetails.findOne({ slug })
+        .select('-__v -createdAt -updatedAt')
+        .exec();
+
+      if (!details) {
+        this.log.debug(`No crop details found for slug: ${slug}`);
+        return null;
+      }
+
+      return details;
+    } catch (error) {
+      this.log.error(`Error fetching crop details for ${slug}: ${(error as Error).message}`);
+      return null;
+    }
   }
 }

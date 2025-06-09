@@ -5,28 +5,41 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 import { UpdateUserValidation } from '../validations/user.validation';
 
 export class UserRouter {
-  public router: Router;
+  private router: Router;
+  private userController: UserController;
 
   constructor() {
+    this.userController = new UserController();
     this.router = Router();
     this.initializeRoutes();
   }
 
   private initializeRoutes(): void {
     // Refresh user route (requires authentication)
-    this.router.get('/refresh', authMiddleware, UserController.refreshUser);
+    this.router.get(
+      '/me',
+      authMiddleware,
+      this.userController.refreshUser.bind(this.userController)
+    );
 
     // Update user route (requires authentication and validation)
     this.router.put(
       '/update',
       authMiddleware,
       ValidationMiddleware.validateBody(UpdateUserValidation.update),
-      UserController.updateUser
+      this.userController.updateUser.bind(this.userController)
     );
 
     // Profile route (requires authentication)
-    this.router.get('/profile', authMiddleware, UserController.getUserProfile);
+    this.router.get(
+      '/profile',
+      authMiddleware,
+      this.userController.getUserProfile.bind(this.userController)
+    );
+  }
+  public getRouter(): Router {
+    return this.router;
   }
 }
 
-export const userRouter = new UserRouter().router;
+export const userRouter = new UserRouter().getRouter();

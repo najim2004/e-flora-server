@@ -13,7 +13,7 @@ const CropRecommendationsSchema = new Schema<ICropRecommendations>(
         match: { type: Number, required: true },
         cropDetails: {
           status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
-          id: { type: Schema.Types.ObjectId },
+          id: { type: Schema.Types.ObjectId, ref: 'CropDetails' },
           slug: { type: String },
         },
       },

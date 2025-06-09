@@ -55,10 +55,10 @@ export class CropSuggestionSocketHandler {
     this.log.info(`Completed sent to ${userId}`);
   }
 
-  async emitFailed(userId: string, error: string): Promise<void> {
+  async emitFailed(userId: string, message: string): Promise<void> {
     const room = CropSuggestionSocketHandler.ROOM(userId);
-    this.io.to(room).emit('cropSuggestionFailed', { error, timestamp: new Date() });
-    this.log.warn(`Failed sent to ${userId}: ${error}`);
+    this.io.to(room).emit('cropSuggestionFailed', { message, timestamp: new Date() });
+    this.log.warn(`Failed sent to ${userId}: ${message}`);
   }
 
   async emitCropDetails(

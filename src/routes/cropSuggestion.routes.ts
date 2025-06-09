@@ -18,20 +18,25 @@ export class CropSuggestionRouter {
     this.router.post(
       '/crop-suggestion',
       authMiddleware,
-      ValidationMiddleware.validateQuery(CropSuggestionValidation.cropSuggestion),
-      this.cropSuggestionController.generateCropSuggestion
+      ValidationMiddleware.validateBody(CropSuggestionValidation.cropSuggestion),
+      this.cropSuggestionController.generateCropSuggestion.bind(this.cropSuggestionController)
     );
     this.router.get(
       '/crop-suggestion/result/:id',
       authMiddleware,
       ValidationMiddleware.validateParams(DiseaseDetectionValidation.resultParam),
-      this.cropSuggestionController.getSingleResult
+      this.cropSuggestionController.getSingleResult.bind(this.cropSuggestionController)
     );
     this.router.post(
       '/crop-suggestion/histories',
       authMiddleware,
-      ValidationMiddleware.validateParams(DiseaseDetectionValidation.historiesQuery),
-      this.cropSuggestionController.getHistories
+      ValidationMiddleware.validateQuery(DiseaseDetectionValidation.historiesQuery),
+      this.cropSuggestionController.getHistories.bind(this.cropSuggestionController)
+    );
+    this.router.get(
+      '/crop-suggestion/crop/:slug',
+      ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetailsParam),
+      this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
     );
   }
   public getRouter(): Router {

@@ -13,7 +13,11 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
       latitude: { type: Number, required: true },
       longitude: { type: Number, required: true },
     },
-    cropRecommendationsId: { type: Schema.Types.ObjectId, required: true },
+    cropRecommendationsId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CropRecommendations',
+      required: true,
+    },
   },
   {
     timestamps: true,

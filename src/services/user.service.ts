@@ -2,7 +2,7 @@ import { IUser } from '../interfaces/user.interface';
 import { User } from '../models/user.model';
 
 export class UserService {
-  public static async updateUser(userId: string, updateData: any): Promise<IUser> {
+  public async updateUser(userId: string, updateData: any): Promise<IUser> {
     try {
       const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
         new: true, // Return the updated document
@@ -21,7 +21,7 @@ export class UserService {
     }
   }
 
-  public static async findUserById(
+  public async findUserById(
     userId: string
   ): Promise<Pick<IUser, 'role' | 'email' | 'name' | '_id' | 'appPreferences' | 'profileImage'>> {
     try {
@@ -40,7 +40,7 @@ export class UserService {
       );
     }
   }
-  public static async getProfile(
+  public async getProfile(
     userId: string
   ): Promise<
     Omit<

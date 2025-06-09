@@ -8,7 +8,7 @@ export class CropSuggestionPrompts {
         - Exactly 3 crop recommendations that are **ideal for the current month and weather** conditions.
         - At least 3 sets of cultivation tips.
         - Echo back the given weather data exactly as-is, without any changes.
-
+    
         You must:
         - Consider the **current time of the year (month and season)** and the **weather data** while selecting crops.
         - Perform proper research to ensure the crops are realistically suitable for current conditions and input parameters.
@@ -16,15 +16,17 @@ export class CropSuggestionPrompts {
         - Strictly follow the JSON format given below.
         - Do not generate any explanatory text or additional fields.
         - Do not leave any field blank.
-
+        - Do not add any code block markers like \`\`\`json or \`\`\` around the output.
+        - Return only the raw JSON object exactly as specified, with no extra characters or formatting.
+    
         ---
-
+    
         ## INPUT
-
+    
         - soilType: ${input.soilType}
         - farmSize: ${input.farmSize}
         - irrigationAvailability: ${input.irrigationAvailability}
-
+    
         **Weather:**
         - avgMaxTemp: ${input.avgMaxTemp}
         - avgMinTemp: ${input.avgMinTemp}
@@ -32,58 +34,42 @@ export class CropSuggestionPrompts {
         - avgRainfall: ${input.avgRainfall}
         - avgWindSpeed: ${input.avgWindSpeed}
         - dominantWindDirection: "${input.dominantWindDirection}"
-
+    
         ---
-
+    
         ## OUTPUT FORMAT (strictly return valid JSON):
-
+    
+        Required JSON structure:
         {
-        "crops": [
-            {
-            "icon": "",
-            "name": "",
-            "scientificName": "",
-            "description": "",
-            "match": 0
-            },
-            {
-            "icon": "", 
-            "name": "",
-            "scientificName": "",
-            "description": "",
-            "match": 0
-            },
-            {
-            "icon": "",
-            "name": "",
-            "scientificName": "",
-            "description": "",
-            "match": 0
+            "crops": [
+                {
+                "icon": string,
+                "name": string,
+                "scientificName": string, 
+                "description": string,
+                "match": number (level is 0 to 100)
+                "cropDetails":{
+                    status:"pending"
+                    }
+                }
+            ],
+            "cultivationTips": [
+                {
+                "title": string,
+                "tips": string[]
+                }
+            ],
+            "weathers": {
+                "avgMaxTemp": number,
+                "avgMinTemp": number,
+                "avgHumidity": number,
+                "avgRainfall": number,
+                "avgWindSpeed": number,
+                "dominantWindDirection": string
             }
-        ],
-        "cultivationTips": [
-            {
-            "title": "",
-            "tips": ["", "", ""]
-            },
-            {
-            "title": "",
-            "tips": ["", "", ""]
-            },
-            {
-            "title": "",
-            "tips": ["", "", ""]
-            }
-        ],
-        "weathers": { 
-            "avgMaxTemp": ${input.avgMaxTemp},
-            "avgMinTemp": ${input.avgMinTemp}, 
-            "avgHumidity": ${input.avgHumidity},
-            "avgRainfall": ${input.avgRainfall},
-            "avgWindSpeed": ${input.avgWindSpeed},
-            "dominantWindDirection": "${input.dominantWindDirection}"
         }`;
   }
+
   public getCropDetailsPrompt(cropName: string, cropScientificName: string): string {
     return `You are an advanced agricultural AI system with access to up-to-date and accurate crop cultivation data.
 

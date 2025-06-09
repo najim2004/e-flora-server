@@ -24,7 +24,7 @@ export class CropSuggestionController {
       });
       this.cropSuggestionService.generateCropSuggestion(req.body, userId);
     } catch (error) {
-      this.logger.logError(error as Error, 'CropSuggestionController');
+      this.logger.logError(error as Error, 'CropSuggestion');
       next(error);
     }
   }
@@ -41,7 +41,7 @@ export class CropSuggestionController {
         data: result,
       });
     } catch (error) {
-      this.logger.logError(error as Error, 'CropSuggestionController');
+      this.logger.logError(error as Error, 'CropSuggestion');
       next(error);
     }
   }
@@ -62,7 +62,25 @@ export class CropSuggestionController {
         data: result,
       });
     } catch (error) {
-      this.logger.logError(error as Error, 'CropSuggestionController');
+      this.logger.logError(error as Error, 'CropSuggestion');
+      next(error);
+    }
+  }
+  public async getCropDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { slug } = req.params;
+      if (!slug) throw new BadRequestError('Slug is required');
+
+      const details = await this.cropSuggestionService.getCropDetails(slug);
+      if (!details) throw new NotFoundError('Crop details not found');
+
+      res.status(200).json({
+        message: 'Crop details fetched successfully',
+        success: true,
+        data: details,
+      });
+    } catch (error) {
+      this.logger.logError(error as Error, 'CropSuggestion');
       next(error);
     }
   }
