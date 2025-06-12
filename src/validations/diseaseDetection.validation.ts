@@ -5,7 +5,7 @@ export class DiseaseDetectionValidation {
     cropName: Joi.string().required().messages({
       'string.empty': `"cropName" is required`,
     }),
-    description: Joi.string().optional(),
+    description: Joi.string().allow('', null).optional(),
   });
   public static resultParam = Joi.object({
     id: Joi.string().alphanum().length(24).required().messages({

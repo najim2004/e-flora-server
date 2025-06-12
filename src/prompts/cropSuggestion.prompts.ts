@@ -81,6 +81,7 @@ export class CropSuggestionPrompts {
       4. Maintain proper data types: string, number, arrays of string/objects as per schema.
       5. Do not include any explanation, markdown, or formatting — return raw JSON only.
       6. This data will be stored in a MongoDB database using a Mongoose schema. Structure and format must be perfect.
+      7.Must be use Bangladeshi currency value.
 
       Schema structure:
       {

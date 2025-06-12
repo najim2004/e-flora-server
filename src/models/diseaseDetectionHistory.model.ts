@@ -15,7 +15,6 @@ const DiseaseDetectionHistorySchema = new Schema<IDiseaseDetectionHistory>(
     },
     description: {
       type: String,
-      required: true,
       trim: true,
     },
     image: {

@@ -34,7 +34,7 @@ export class CropSuggestionRouter {
       this.cropSuggestionController.getHistories.bind(this.cropSuggestionController)
     );
     this.router.get(
-      '/crop-suggestion/crop/:slug',
+      '/crop-details/:slug',
       ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetailsParam),
       this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
     );

@@ -28,7 +28,7 @@ export class DiseaseDetectionController {
         this.diseaseDetectionService.detectDisease({
           userId: req.user?._id,
           cropName: req.body.cropName,
-          description: req.body.description,
+          description: req.body.description || null,
           image: req.file,
         });
       } catch (error) {
@@ -45,7 +45,7 @@ export class DiseaseDetectionController {
   ): Promise<void> => {
     try {
       if (!req.user?._id) throw new UnauthorizedError('User not authorized to perform this action');
-      if (req.params?.id) throw new BadRequestError('Resource not found');
+      if (!req.params?.id) throw new BadRequestError('Resource not found');
       const result = await this.diseaseDetectionService.getSingleResult(
         req.user._id,
         req.params.id

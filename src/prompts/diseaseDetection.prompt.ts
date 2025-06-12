@@ -8,11 +8,11 @@ export class DiseaseDetectionPrompt {
   Analyze the image of a ${cropNameFromUser}. ${description ? `Context: ${description}` : ''}
   
   Respond with:
-  - Only the disease name if detected.
-  - NO_DISEASE_DETECTED if no disease is found.
-  - ERROR_INVALID_IMAGE if the image is unclear, irrelevant, or does not contain a crop.
+  - Disease name in normal text if detected (e.g., Sooty mold, Leaf rust)
+  - NO_DISEASE_DETECTED if no disease is found
+  - ERROR_INVALID_IMAGE if the image is unclear, irrelevant, or does not contain a crop
   
-  Do not include any explanation or extra words. Reply with exact uppercase keywords only.`.trim();
+  Do not include any explanation or extra words. Reply with exact disease name only.`.trim();
   }
   public static getNewDiseaseDetectionGeneratingPrompt(
     diseaseName: string,

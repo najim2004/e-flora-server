@@ -44,7 +44,7 @@ export class DiseaseDetectionRoutes {
     this.router.post(
       '/disease-detection/histories',
       authMiddleware,
-      ValidationMiddleware.validateParams(DiseaseDetectionValidation.historiesQuery),
+      ValidationMiddleware.validateQuery(DiseaseDetectionValidation.historiesQuery),
       this.diseaseDetectionController.getHistories
     );
   }

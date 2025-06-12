@@ -116,6 +116,12 @@ export class DiseaseDetectionService {
     | 'causes'
     | 'preventiveTips'
   > | null> {
+    // Check if name contains any invalid terms using regex
+    const invalidPattern = /(unknown|n\/?a|null)/i;
+    if (!name || invalidPattern.test(name)) {
+      return null;
+    }
+
     const h = await DiseaseDetectionHistory.findOne({
       cropName: name,
       'detectedDisease.status': 'success',
@@ -123,6 +129,7 @@ export class DiseaseDetectionService {
       .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
       .session(session)
       .exec();
+
     return h?.detectedDisease?.id
       ? { ...h?.detectedDisease?.id.toObject(), _id: h?.detectedDisease?.id._id }
       : DiseaseDetection.findOne({ cropName: name })
@@ -142,6 +149,7 @@ export class DiseaseDetectionService {
     });
     if (!disease || ['ERROR_INVALID_IMAGE', 'NO_DISEASE_DETECTED'].includes(disease))
       throw new Error('Image not valid or no disease detected.');
+    console.log('THIS LINE BY ME', disease);
     const embedded = await this.gemini.generateEmbedding(disease);
     if (!embedded.length) throw new Error('Embedding generation failed.');
     return { diseaseName: disease, embedded };
@@ -164,6 +172,7 @@ export class DiseaseDetectionService {
     | 'embedded'
   > | null> {
     const results = await DiseaseDetectionService.search(name, session);
+    console.log('THIS IS SECOND LINE', results);
     if (!results.length) return null;
     return DiseaseDetectionService.findBestMatch(results, embed);
   }
@@ -206,9 +215,17 @@ export class DiseaseDetectionService {
     desc?: string
   ): Promise<OutputDetectDisease> {
     const prompt = DiseaseDetectionPrompt.getNewDiseaseDetectionGeneratingPrompt(name, crop, desc);
-    const json = await this.gemini.generateResponse(prompt);
-    if (!json) throw new Error('AI failed to generate details.');
-    const parsed = JSON.parse(json);
+    let raw = await this.gemini.generateResponse(prompt);
+    if (!raw) throw new Error('AI failed to generate details.');
+    // Remove code block wrappers if present
+    raw = raw.trim();
+    if (raw.startsWith('```')) {
+      raw = raw
+        .replace(/^```json?\n?/, '')
+        .replace(/```$/, '')
+        .trim();
+    }
+    const parsed = JSON.parse(raw);
     if (!parsed.diseaseName || !parsed.symptoms || !parsed.treatment)
       throw new Error('Incomplete disease data.');
     return parsed;
@@ -237,7 +254,8 @@ export class DiseaseDetectionService {
       | 'preventiveTips'
       | 'embedded'
     >[],
-    query: number[]
+    query: number[],
+    threshold = 0.8 // default threshold
   ): Pick<
     IDiseaseDetection,
     | '_id'
@@ -250,7 +268,7 @@ export class DiseaseDetectionService {
     | 'preventiveTips'
     | 'embedded'
   > | null {
-    return data.reduce<{
+    const best = data.reduce<{
       doc: Pick<
         IDiseaseDetection,
         | '_id'
@@ -270,7 +288,10 @@ export class DiseaseDetectionService {
         return score > best.score ? { doc: curr, score } : best;
       },
       { doc: null, score: -Infinity }
-    ).doc;
+    );
+
+    // Return only if best match meets threshold
+    return best.score >= threshold ? best.doc : null;
   }
 
   static async search(
