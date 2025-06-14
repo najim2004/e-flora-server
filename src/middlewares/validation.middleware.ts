@@ -90,7 +90,11 @@ export class ValidationMiddleware {
         return next(new BadRequestError(errorMessage));
       }
 
-      req.query = value; // Assign sanitized and validated query
+      // Instead of this:
+      // req.query = value;
+
+      // Use this:
+      Object.assign(req.query, value); // ✅ Updates existing object
       next();
     };
   }

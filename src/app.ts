@@ -32,7 +32,7 @@ export class App {
     this.app.use(helmet());
     this.app.use(
       cors({
-        origin: 'http://localhost:3000', // Your frontend URL
+        origin: ['http://localhost:3000'], // Your frontend URL
         credentials: true,
       })
     );
