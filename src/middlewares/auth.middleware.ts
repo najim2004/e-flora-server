@@ -6,7 +6,7 @@ import { UnauthorizedError } from '../utils/errors';
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const token = req.cookies.token;
-  
+
   if (!token) {
     return next(new UnauthorizedError('Unauthorized access'));
   }

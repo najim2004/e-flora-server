@@ -26,4 +26,3 @@ export interface CropSuggestionOutput extends CropSuggestionInput {
     _id: string;
   };
 }
-

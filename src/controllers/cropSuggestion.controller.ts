@@ -52,8 +52,8 @@ export class CropSuggestionController {
       if (req.params?.id) throw new BadRequestError('Resource not found');
       const result = await this.cropSuggestionService.getHistories(
         userId,
-        req.body.limit,
-        req.body.page
+        req.body?.page || 1,
+        req.body?.limit || 10
       );
       if (!result) throw new NotFoundError('Not result found');
       res.status(200).json({

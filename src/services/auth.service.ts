@@ -7,10 +7,10 @@ import { RegCredentials, LoginCredentials, AuthResponse, TokenPayload } from '..
 import 'dotenv';
 
 export class AuthService {
-  private logger:Logger
+  private logger: Logger;
   private userModel = User;
-  constructor(){
-    this.logger = Logger.getInstance('Auth')
+  constructor() {
+    this.logger = Logger.getInstance('Auth');
   }
 
   public async register(userData: RegCredentials): Promise<boolean> {
