@@ -71,7 +71,7 @@ export interface IUser extends CommonInMongoose {
   phoneNumber: string;
   gender: string;
   dateOfBirth: Date;
-  farm: Types.ObjectId;
+  garden: Types.ObjectId;
   activities: Types.ObjectId;
   appPreferences: AppPreferences;
   accountSettings: AccountSettings;
