@@ -101,7 +101,7 @@ const userSchema = new Schema<IUser>(
     dateOfBirth: Date,
 
     // References
-    farm: { type: Schema.ObjectId, ref: 'Farm' },
+    garden: { type: Schema.ObjectId, ref: 'Garden' },
     activities: [{ type: Schema.Types.ObjectId, ref: 'Activity' }],
 
     // Preferences and Settings with default values

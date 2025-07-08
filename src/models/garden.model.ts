@@ -9,6 +9,10 @@ const gardenSchema = new Schema<IGarden>(
     location: {
       latitude: Number,
       longitude: Number,
+      country: String,
+      state: String,
+      city: String,
+      zipCode: String,
     },
     size: Number,
     Weather: {

@@ -1,6 +1,13 @@
 import { Types } from 'mongoose';
 import { CommonInMongoose } from './common.interface';
-import { Location } from './cropSuggestionHistory.interface';
+import { Location as Loc } from './cropSuggestionHistory.interface';
+
+export interface Location extends Loc {
+  country: string;
+  state: string;
+  city: string;
+  zipCode: string;
+}
 
 export interface Weather {
   maxTemp: number;
@@ -20,7 +27,7 @@ export interface IGarden extends CommonInMongoose {
   size: number;
   Weather: Weather;
   crops: Types.ObjectId[];
-  activeCrops:number;
-  pendingCrops:number;
-  removedCrops:number;
+  activeCrops: number;
+  pendingCrops: number;
+  removedCrops: number;
 }
