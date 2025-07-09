@@ -25,6 +25,7 @@ const gardenSchema = new Schema<IGarden>(
       date: Date,
     },
     crops: [{ type: Schema.Types.ObjectId, ref: 'GardenCrop' }],
+    tasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],
     activeCrops: Number,
     pendingCrops: Number,
     removedCrops: Number,
