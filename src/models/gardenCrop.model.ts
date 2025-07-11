@@ -19,7 +19,7 @@ const gardenCropSchema = new Schema<IGardenCrop>({
     id: String,
   },
   tasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],
-  plantingGuide: Schema.Types.ObjectId,
+  plantingGuideId: { type: Schema.Types.ObjectId, ref: 'PlantingGuide', },
 });
 
 export const GardenCrop = models.GardenCrop || model<IGardenCrop>('GardenCrop', gardenCropSchema);

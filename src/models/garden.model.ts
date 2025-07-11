@@ -29,6 +29,11 @@ const gardenSchema = new Schema<IGarden>(
     activeCrops: Number,
     pendingCrops: Number,
     removedCrops: Number,
+    type: String,
+    soilType: [String],
+    sunExposure: String,
+    waterSource: String,
+    notes: String,
   },
   {
     timestamps: true,

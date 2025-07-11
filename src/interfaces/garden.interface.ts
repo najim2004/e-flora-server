@@ -31,4 +31,9 @@ export interface IGarden extends CommonInMongoose {
   activeCrops: number;
   pendingCrops: number;
   removedCrops: number;
+  type: string;
+  soilType: string[];
+  sunExposure: string;
+  waterSource: string;
+  notes?: string;
 }

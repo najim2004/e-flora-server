@@ -16,5 +16,5 @@ export interface IGardenCrop extends CommonInMongoose {
     id: string;
   };
   tasks: Types.ObjectId[];
-  plantingGuide: Types.ObjectId;
+  plantingGuideId: Types.ObjectId;
 }

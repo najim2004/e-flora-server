@@ -1,18 +1,18 @@
 import { Types } from 'mongoose';
 import { CommonInMongoose } from './common.interface';
 
-export interface Guide {
+export interface PlantingGuideItem {
   title: string;
   description: string;
-  steps: string[];
+  instructions: string[];
   note: string;
 }
 
-export interface IPlantingGuide extends CommonInMongoose {
+export interface PlantingGuide extends CommonInMongoose {
   cropId: Types.ObjectId;
   gardenId: Types.ObjectId;
-  guides: Guide[];
-  totalSteps: number;
+  plantingSteps: PlantingGuideItem[];
+  numberOfSteps: number;
   currentStep: number;
-  status: 'inprogress' | 'completed';
+  status: 'inProgress' | 'completed';
 }
