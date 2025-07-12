@@ -1,28 +1,24 @@
-import { ICropRecommendations } from '../interfaces/cropRecommendations.interface';
-import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
+import { LocationWithAddress } from './common.types';
 
-export type CropSuggestionInput = Pick<
-  ICropSuggestionHistory,
-  'soilType' | 'farmSize' | 'irrigationAvailability' | 'location'
->;
-export type CropSuggestionStatus =
-  | 'initiated'
-  | 'analyzing'
-  | 'generatingData'
-  | 'savingToDB'
-  | 'completed'
-  | 'failed';
+export type SoilType = 'loamy' | 'sandy' | 'clayey' | 'silty' | 'peaty' | 'chalky' | 'unknown';
 
-export interface CropSuggestionProgressUpdate {
-  userId: string;
-  status: CropSuggestionStatus;
-  progress: number;
-  message?: string;
-}
+export type Sunlight = 'full' | 'partial' | 'shade';
 
-export interface CropSuggestionOutput extends CropSuggestionInput {
-  _id: string;
-  recommendations: Pick<ICropRecommendations, 'crops' | 'weathers' | 'cultivationTips'> & {
-    _id: string;
-  };
+export type WaterSource = 'tube-well' | 'tap' | 'rainwater' | 'storage' | 'manual' | 'uncertain';
+
+export type Purpose = 'eat' | 'sell' | 'decor' | 'educational' | 'mixed';
+
+export interface CropSuggestionInput {
+  // for manual mode
+  location: LocationWithAddress;
+  image?: string;
+  area?: number;
+  soilType?: SoilType;
+  sunlight?: Sunlight;
+  waterSource?: WaterSource;
+  purpose?: Purpose;
+  currentCrops?: string[];
+
+  // for auto mode
+  gardenId?: string;
 }

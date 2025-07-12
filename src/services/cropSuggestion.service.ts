@@ -3,7 +3,7 @@ import { CropDetails } from '../models/cropDetails.model';
 import { CropRecommendations } from '../models/cropRecommendations.model';
 import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
-import { CropSuggestionInput, CropSuggestionStatus } from '../types/cropSuggestion.types';
+import { CropSuggestionInput, CropSuggestionStatus } from '../types/0cropSuggestion.types';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 import { WeatherAverages, WeatherService } from '../utils/weather.utils';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';

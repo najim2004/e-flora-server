@@ -1,7 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import Logger from '../utils/logger';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
-import { CropSuggestionOutput, CropSuggestionProgressUpdate } from '../types/cropSuggestion.types';
+import { CropSuggestionOutput, CropSuggestionProgressUpdate } from '../types/0cropSuggestion.types';
 
 export class CropSuggestionSocketHandler {
   private static readonly ROOM = (id: string): string => `user:${id}:crop-suggestion`;

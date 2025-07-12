@@ -3,7 +3,7 @@ import { ValidationMiddleware } from '../middlewares/validation.middleware';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { CropSuggestionController } from '../controllers/cropSuggestion.controller';
 import { CropSuggestionValidation } from '../validations/cropSuggestion.validation';
-import { DiseaseDetectionValidation } from '../validations/diseaseDetection.validation';
+import { DiseaseDetectionValidation } from '../validations/0diseaseDetection.validation';
 
 export class CropSuggestionRouter {
   private router: Router;

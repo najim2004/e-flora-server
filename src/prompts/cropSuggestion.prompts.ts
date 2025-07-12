@@ -1,4 +1,4 @@
-import { CropSuggestionInput } from '../types/cropSuggestion.types';
+import { CropSuggestionInput } from '../types/0cropSuggestion.types';
 import { WeatherAverages } from '../utils/weather.utils';
 
 export class CropSuggestionPrompts {
