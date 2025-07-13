@@ -1,14 +1,9 @@
+import { PlantType, Purpose, SoilType, Sunlight, WaterSource } from '../interfaces/cropSuggestionHistory.interface';
 import { LocationWithAddress } from './common.types';
-
-export type SoilType = 'loamy' | 'sandy' | 'clayey' | 'silty' | 'peaty' | 'chalky' | 'unknown';
-
-export type Sunlight = 'full' | 'partial' | 'shade';
-
-export type WaterSource = 'tube-well' | 'tap' | 'rainwater' | 'storage' | 'manual' | 'uncertain';
-
-export type Purpose = 'eat' | 'sell' | 'decor' | 'educational' | 'mixed';
-
 export interface CropSuggestionInput {
+  //common fields
+  plantType: PlantType;
+
   // for manual mode
   location: LocationWithAddress;
   image?: string;
