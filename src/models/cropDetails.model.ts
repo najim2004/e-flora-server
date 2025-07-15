@@ -4,144 +4,171 @@ import { ICropDetails } from '../interfaces/cropDetails.interface';
 const cropDetailsSchema = new Schema<ICropDetails>({
   name: { type: String, required: true },
   scientificName: { type: String, required: true },
-  slug: { type: String, unique: true },
+  type: { type: String, required: true },
+  variety: { type: String, required: true },
   description: { type: String, required: true },
-  img: String,
-  alternatives: [String],
-
-  season: {
-    planting: { type: String, required: true },
-    harvesting: { type: String, required: true },
-    duration: { type: String, required: true },
-  },
-
-  soil: {
-    types: { type: String, required: true },
-    ph: { type: String, required: true },
-    drainage: { type: String, required: true },
-  },
-  climate: {
-    temperature: { type: String, required: true }, //example: "20-30°C",
-    humidity: { type: String, required: true }, //example: "60-80%",
-    rainfall: { type: String, required: true }, //example: "1000-1500mm during growing season",
-  },
-  water: {
-    requirements: { type: String, required: true },
-    irrigationSchedule: String,
-    criticalStage: [String],
-  },
-
-  cultivationGuides: [
-    {
-      _id: false,
-      title: { type: String, required: true },
-      guides: [{ type: String, required: true }],
+  image: { type: Schema.Types.ObjectId, ref: 'Image' },
+  tags: [{ type: String, required: true }],
+  difficultyLevel: { type: String, required: true },
+  isPerennial: { type: Boolean, required: true },
+  cropCycle: { type: String, required: true },
+  lastUpdated: { type: String, required: true },
+  gardenTypeSuitability: {
+    rooftop: {
+      suitable: { type: Boolean },
+      notes: { type: String },
     },
-  ],
-
-  management: {
+    balcony: {
+      suitable: { type: Boolean },
+      notes: { type: String },
+    },
+    land: {
+      suitable: { type: Boolean },
+      notes: { type: String },
+    },
+  },
+  growthConditions: {
+    plantingSeason: { type: String, required: true },
+    plantingTime: { type: String, required: true },
+    climate: { type: String, required: true },
+    temperatureRange: {
+      min: { type: String, required: true },
+      max: { type: String, required: true },
+    },
+    humidityRequirement: { type: String, required: true },
+    sunlight: { type: String, required: true },
+    soil: {
+      type: { type: String, required: true },
+      pH: { type: String, required: true },
+      drainage: { type: String, required: true },
+    },
+    spacingRequirements: { type: String, required: true },
+    containerGardening: {
+      canGrowInPots: { type: Boolean, required: true },
+      potSize: { type: String, required: true },
+      potDepth: { type: String, required: true },
+      drainage: { type: String, required: true },
+    },
+  },
+  careRequirements: {
+    water: {
+      requirement: { type: String, required: true },
+      frequency: { type: String, required: true },
+      waterConservationTips: [{ type: String, required: true }],
+    },
     fertilizer: {
-      nitrogen: { type: String, required: true },
-      phosphorus: { type: String, required: true },
-      potassium: { type: String, required: true },
-      Application: [{ type: String, required: true }],
+      type: { type: String, required: true },
+      schedule: { type: String, required: true },
     },
-    weedManagement: [{ type: String, required: true }],
-    pestsManagement: [
+    pruning: { type: String, required: true },
+    support: { type: String, required: true },
+    spaceOptimizationTips: [{ type: String, required: true }],
+    toolsRequired: [{ type: String, required: true }],
+  },
+  growthAndHarvest: {
+    propagationMethods: [{ type: String, required: true }],
+    germinationTime: { type: String, required: true },
+    maturityTime: { type: String, required: true },
+    harvestTime: { type: String, required: true },
+    yieldPerPlant: { type: String, required: true },
+    harvestingTips: [{ type: String, required: true }],
+    pollinationType: { type: String, required: true },
+    seasonalAdjustments: {
+      rooftop: { type: String },
+      balcony: { type: String },
+      land: { type: String },
+    },
+  },
+  pestAndDiseaseManagement: {
+    commonDiseases: [
       {
-        _id: false,
-        name: String,
-        symptoms: String,
-        managements: String,
+        name: { type: String, required: true },
+        symptoms: { type: String, required: true },
+        treatment: { type: String, required: true },
       },
     ],
-    diseaseManagement: [
+    commonPests: [
       {
-        _id: false,
-        name: String,
-        symptoms: String,
-        managements: String,
+        name: { type: String, required: true },
+        symptoms: { type: String, required: true },
+        treatment: { type: String, required: true },
       },
     ],
   },
-
-  harvesting: [
-    {
-      _id: false,
-      title: { type: String, required: true },
-      guides: [{ type: String, required: true }],
-    },
-  ],
-
-  economics: {
-    yield: {
-      average: { type: String, default: '' },
-      potential: { type: String, default: '' },
-      factorsAffectingYield: { type: String, default: '' },
-    },
-
-    productionCosts: {
-      landPreparation: { cost: Number, percentage: Number },
-      seeds: { cost: Number, percentage: Number },
-      fertilizers: { cost: Number, percentage: Number },
-      irrigation: { cost: Number, percentage: Number },
-      plantProtection: { cost: Number, percentage: Number },
-      labor: { cost: Number, percentage: Number },
-      harvestingPostHarvest: { cost: Number, percentage: Number },
-      total: Number,
-    },
-
-    market: {
-      price: { type: String, default: '' },
-      demand: { type: String, default: '' },
-      storageLife: { type: String, default: '' },
-      priceFluctuation: { type: String, default: '' },
-    },
-
-    profitabilityAnalysis: {
-      averageYield: Number,
-      averagePrice: Number,
-      grossRevenue: Number,
-      totalCost: Number,
-      netProfit: Number,
-      benefitCostRatio: Number,
-    },
+  companionPlanting: {
+    companionPlants: [
+      {
+        name: { type: String, required: true },
+        benefit: { type: String, required: true },
+      },
+    ],
+    avoidNear: [{ type: String, required: true }],
+    notes: { type: String },
   },
+  nutritionalAndCulinary: {
+    nutritionalValue: { type: String, required: true },
+    healthBenefits: { type: String, required: true },
+    culinaryUses: { type: String, required: true },
+    storageTips: { type: String, required: true },
+  },
+  economicAspects: {
+    marketDemand: { type: String, required: true },
+    seedSourcing: [
+      {
+        source: { type: String, required: true },
+        details: { type: String, required: true },
+      },
+    ],
+    costBreakdown: [
+      {
+        item: { type: String, required: true },
+        cost: { type: Number, required: true },
+        unit: { type: String, required: true },
+        note: { type: String },
+      },
+    ],
+  },
+  sustainabilityTips: [{ type: String, required: true }],
+  aestheticValue: {
+    description: { type: String, required: true },
+    tips: { type: String, required: true },
+  },
+  regionalSuitability: {
+    suitableRegions: [{ type: String, required: true }],
+    urbanGardeningNotes: { type: String, required: true },
+  },
+  funFacts: [{ type: String, required: true }],
+  slug: { type: String, unique: true, sparse: true },
 });
-// Modified pre-save hook
+
 cropDetailsSchema.pre('save', async function (next) {
   try {
-    // If scientificName is modified or new document
     if (this.isModified('scientificName') || this.isNew) {
-      if (!this.scientificName) {
+      if (!this.get('scientificName')) {
         throw new Error('Scientific name is required');
       }
 
-      // Create base slug from scientific name
-      const baseSlug = this.scientificName
+      const baseSlug = this.get('scientificName')
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric chars with hyphen
-        .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
 
       let slug = baseSlug;
       let counter = 0;
 
-      // Find unique slug
       while (true) {
-        // Check if slug exists (excluding current document)
         const existingDoc = await (this.constructor as Model<ICropDetails>).findOne({
-          slug,
+          slug: slug,
           _id: { $ne: this._id },
         });
 
         if (!existingDoc) break;
 
-        // If exists, increment counter and try again
         counter++;
         slug = `${baseSlug}-${counter}`;
       }
 
-      this.slug = slug;
+      this.set('slug', slug);
     }
     next();
   } catch (error) {

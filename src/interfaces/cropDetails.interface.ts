@@ -1,101 +1,172 @@
+import { Types } from 'mongoose';
 import { CommonInMongoose } from './common.interface';
 
-export interface Season {
-  planting: string;
-  harvesting: string;
-  duration: string;
+export interface GardenTypeSuitability {
+  rooftop?: {
+    suitable: boolean;
+    notes?: string;
+  };
+  balcony?: {
+    suitable: boolean;
+    notes?: string;
+  };
+  land?: {
+    suitable: boolean;
+    notes?: string;
+  };
 }
-export interface Climate {
-  temperature: string;
-  humidity: string;
-  rainfall: string;
+
+export interface TemperatureRange {
+  min: string;
+  max: string;
 }
+
 export interface Soil {
-  types: string;
-  ph: string;
+  type: string;
+  pH: string;
   drainage: string;
 }
+
+export interface ContainerGardening {
+  canGrowInPots: boolean;
+  potSize: string;
+  potDepth: string;
+  drainage: string;
+}
+
+export interface GrowthConditions {
+  plantingSeason: string;
+  plantingTime: string;
+  climate: string;
+  temperatureRange: TemperatureRange;
+  humidityRequirement: string;
+  sunlight: string;
+  soil: Soil;
+  spacingRequirements: string;
+  containerGardening: ContainerGardening;
+}
+
 export interface Water {
-  requirements: string;
-  irrigationSchedule: string;
-  criticalStage: string[];
+  requirement: string;
+  frequency: string;
+  waterConservationTips: string[];
 }
 
 export interface Fertilizer {
-  nitrogen: string;
-  phosphorus: string;
-  potassium: string;
-  Application: string[];
+  type: string;
+  schedule: string;
 }
 
-export interface Pest {
+export interface CareRequirements {
+  water: Water;
+  fertilizer: Fertilizer;
+  pruning: string;
+  support: string;
+  spaceOptimizationTips: string[];
+  toolsRequired: string[];
+}
+
+export interface CommonDisease {
   name: string;
   symptoms: string;
-  managements: string;
+  treatment: string;
 }
 
-export interface Management {
-  fertilizer: Fertilizer;
-  weedManagement: string[];
-  pestsManagement: Pest[];
-  diseaseManagement: Pest[];
+export interface CommonPest {
+  name: string;
+  symptoms: string;
+  treatment: string;
 }
 
-export interface Cultivation {
-  title: string;
-  guides: string[];
-}
-export interface Yield {
-  average: string;
-  potential: string;
-  factorsAffectingYield: string;
-}
-export interface ProductionCosts {
-  landPreparation: { cost: number; percentage: number };
-  seeds: { cost: number; percentage: number };
-  fertilizers: { cost: number; percentage: number };
-  irrigation: { cost: number; percentage: number };
-  plantProtection: { cost: number; percentage: number };
-  labor: { cost: number; percentage: number };
-  harvestingPostHarvest: { cost: number; percentage: number };
-  total: number;
-}
-export interface ProfitabilityAnalysis {
-  averageYield: number;
-  averagePrice: number;
-  grossRevenue: number;
-  totalCost: number;
-  netProfit: number;
-  benefitCostRatio: number;
+export interface PestAndDiseaseManagement {
+  commonDiseases: CommonDisease[];
+  commonPests: CommonPest[];
 }
 
-export interface Market {
-  price: string;
-  demand: string;
-  storageLife: string;
-  priceFluctuation: string;
+export interface CompanionPlant {
+  name: string;
+  benefit: string;
 }
 
-export interface Economics {
-  yield: Yield;
-  productionCosts: ProductionCosts;
-  market: Market;
-  profitabilityAnalysis: ProfitabilityAnalysis;
+export interface CompanionPlanting {
+  companionPlants: CompanionPlant[];
+  avoidNear: string[];
+  notes?: string;
+}
+
+export interface NutritionalAndCulinary {
+  nutritionalValue: string;
+  healthBenefits: string;
+  culinaryUses: string;
+  storageTips: string;
+}
+
+export interface SeedSourcing {
+  source: string;
+  details: string;
+}
+
+export interface CostBreakdown {
+  item: string;
+  cost: number;
+  unit: string;
+  note?: string;
+}
+
+export interface EconomicAspects {
+  marketDemand: string;
+  seedSourcing: SeedSourcing[];
+  costBreakdown: CostBreakdown[];
+}
+
+export interface AestheticValue {
+  description: string;
+  tips: string;
+}
+
+export interface RegionalSuitability {
+  suitableRegions: string[];
+  urbanGardeningNotes: string;
+}
+
+export interface GrowthAndHarvest {
+  propagationMethods: string[];
+  germinationTime: string;
+  maturityTime: string;
+  harvestTime: string;
+  yieldPerPlant: string;
+  harvestingTips: string[];
+  pollinationType: string;
+  seasonalAdjustments: {
+    rooftop?: string;
+    balcony?: string;
+    land?: string;
+  };
 }
 
 export interface ICropDetails extends CommonInMongoose {
   name: string;
   scientificName: string;
-  slug: string;
-  climate: Climate;
+  type: string;
+  variety: string;
   description: string;
-  img: string;
-  alternatives: string[];
-  season: Season;
-  soil: Soil;
-  water: Water;
-  cultivationGuides: Cultivation[];
-  management: Management;
-  harvesting: Cultivation[];
-  economics: Economics;
+  image: Types.ObjectId;
+  slug: string;
+  tags: string[];
+  difficultyLevel: string;
+  isPerennial: boolean;
+  cropCycle: string;
+  lastUpdated: string;
+  gardenTypeSuitability: GardenTypeSuitability;
+  growthConditions: GrowthConditions;
+  careRequirements: CareRequirements;
+  growthAndHarvest: GrowthAndHarvest;
+  pestAndDiseaseManagement: PestAndDiseaseManagement;
+  companionPlanting: CompanionPlanting;
+  nutritionalAndCulinary: NutritionalAndCulinary;
+  economicAspects: EconomicAspects;
+  sustainabilityTips: string[];
+  aestheticValue: AestheticValue;
+  regionalSuitability: RegionalSuitability;
+  funFacts: string[];
 }
