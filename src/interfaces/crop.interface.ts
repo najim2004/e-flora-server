@@ -3,6 +3,7 @@ import { CommonInMongoose } from './common.interface';
 
 export interface ICrop extends CommonInMongoose {
   name: string; // e.g. "Tomato"
+  scientificName: string;
   imageId: Types.ObjectId;
   difficulty: 'very easy' | 'easy' | 'medium' | 'hard';
   features?: string[]; // Max 3 short bullet features
@@ -12,4 +13,8 @@ export interface ICrop extends CommonInMongoose {
   sunlight?: string; // e.g. 'Full sun'
   waterNeed?: string; // e.g. 'Moderate'
   soilType: 'loamy' | 'sandy' | 'clayey' | 'silty' | 'peaty' | 'chalky';
+  details: {
+    status: 'pending' | 'success' | 'failed';
+    detailsId?: Types.ObjectId;
+  };
 }

@@ -3,10 +3,11 @@ import { LocationWithAddress } from './common.types';
 export interface CropSuggestionInput {
   //common fields
   plantType: PlantType;
+  mode: 'manual' | 'auto';
 
   // for manual mode
   location: LocationWithAddress;
-  image?: string;
+  image?: Express.Multer.File;
   area?: number;
   soilType?: SoilType;
   sunlight?: Sunlight;

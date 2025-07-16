@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { DiseaseDetectionController } from '../controllers/diseaseDetection.controller';
-import { DiseaseDetectionValidation } from '../validations/0diseaseDetection.validation';
+import { DiseaseDetectionValidation } from '../validations/diseaseDetection.validation';
 import { FileUploadUtil } from '../utils/multer.util';
 import { ValidationMiddleware } from '../middlewares/validation.middleware';
 import { authMiddleware } from '../middlewares/auth.middleware';

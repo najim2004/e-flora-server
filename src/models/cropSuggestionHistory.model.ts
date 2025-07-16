@@ -21,7 +21,7 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
       waterSource: { type: String, enum: ['tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain'], required: true },
       plantType: { type: String, enum: ['vegetable', 'fruit', 'flower', 'herb', 'tree', 'ornamental'], required: true },
     },
-    crops: { type: Schema.Types.ObjectId, ref: 'CropDetails', required: true },
+    crops: { type: Schema.Types.ObjectId, ref: 'Crop', required: true },
     weathers: [{
       avgMaxTemp: { type: Number, required: true },
       avgMinTemp: { type: Number, required: true },

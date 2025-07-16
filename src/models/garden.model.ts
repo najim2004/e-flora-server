@@ -15,7 +15,7 @@ const gardenSchema = new Schema<IGarden>(
       zipCode: String,
     },
     size: Number,
-    Weather: {
+    weather: {
       maxTemp: Number,
       minTemp: Number,
       humidity: Number,

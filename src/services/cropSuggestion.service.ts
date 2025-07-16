@@ -1,9 +1,9 @@
-import { Crop, ICropRecommendations } from '../interfaces/cropRecommendations.interface';
+import { Crop, ICropRecommendations } from '../interfaces/crop.interface';
 import { CropDetails } from '../models/cropDetails.model';
 import { CropRecommendations } from '../models/cropRecommendations.model';
 import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
-import { CropSuggestionInput, CropSuggestionStatus } from '../types/0cropSuggestion.types';
+import { CropSuggestionInput, CropSuggestionStatus } from '../types/cropSuggestion.types';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 import { WeatherAverages, WeatherService } from '../utils/weather.utils';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
@@ -32,20 +32,8 @@ export class CropSuggestionService {
     const key = this.genKey(input);
     this.emitProgress(userId, 'initiated', 10, 'Starting...');
     try {
-      const cached = await this.findCached(key, userId);
-      if (cached)
-        return this.emitDone(
-          userId,
-          cached.recs,
-          await this.saveHistory({
-            ...input,
-            cacheKey: key,
-            userId,
-            cropRecommendationsId: cached.recs._id,
-          })
-        );
+      const weather = await this.fetchWeather(input.location, userId);
 
-      const weather = await this.fetchWeather(input, userId);
       const { recs, hist } = await this.createRecommendation(input, userId, key, weather);
       this.emitDone(userId, recs, hist);
       this.generateDetails(recs._id, recs.crops, userId).catch(e => {
@@ -95,64 +83,43 @@ export class CropSuggestionService {
       .select('_id soilType location farmSize irrigationAvailability createdAt');
   }
 
-  private async findCached(
-    key: string,
-    userId: string
-  ): Promise<{
-    recs: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>;
-  } | null> {
-    this.emitProgress(userId, 'analyzing', 15, 'Checking history...');
-    const uid = new Types.ObjectId(userId);
-    const hist = await this.lookup(CropSuggestionHistory, {
-      cacheKey: key,
-      userId: uid,
-      createdAt: { $gte: this.daysAgo(7) },
-    });
-    if (hist) return { recs: hist };
-    this.emitProgress(userId, 'analyzing', 20, 'Checking cache...');
-    const cache = await this.lookup(CropSuggestionCache, {
-      cacheKey: key,
-      createdAt: { $gte: this.daysAgo(1) },
-    });
-    return cache ? { recs: cache } : null;
-  }
-
-  private async createRecommendation(
+  private async generateCropNames(
     input: CropSuggestionInput,
-    uid: string,
-    key: string,
     weather: WeatherAverages
-  ): Promise<{
-    recs: Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'>;
-    hist: Pick<
-      ICropSuggestionHistory,
-      '_id' | 'soilType' | 'location' | 'farmSize' | 'irrigationAvailability'
-    >;
-  }> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+  ): Promise<{ name: string; scientificName: string }[]> {
     try {
-      const recs = await this.callGemini(input, uid, weather);
-      await CropSuggestionCache.create([{ cacheKey: key, cropRecommendationsId: recs._id }], {
-        session,
+      if (!input.image) return [];
+      const prompt = '...';
+      const cropNames = await this.gemini.generateResponseWithImage(prompt, {
+        path: input.image?.path,
+        mimeType: input.image?.mimetype,
       });
-      const hist = await this.saveHistory(
-        {
-          ...input,
-          cacheKey: key,
-          userId: uid,
-          cropRecommendationsId: recs._id,
-        },
-        session
-      );
-      await session.commitTransaction();
-      this.emitProgress(uid, 'completed', 100, 'Generated successfully.');
-      return { recs, hist };
-    } catch (e) {
-      await session.abortTransaction();
-      throw e;
-    } finally {
-      session.endSession();
+
+      let parsed: unknown = [];
+      if (typeof cropNames === 'string') {
+        try {
+          parsed = JSON.parse(cropNames);
+        } catch {
+          this.log.error('Failed to parse cropNames JSON');
+          parsed = [];
+        }
+      } else if (Array.isArray(cropNames)) {
+        parsed = cropNames;
+      }
+
+      if (
+        Array.isArray(parsed) &&
+        parsed.every(
+          item =>
+            typeof item === 'object' && item !== null && 'name' in item && 'scientificName' in item
+        )
+      ) {
+        return parsed as { name: string; scientificName: string }[];
+      }
+      return [];
+    } catch (error) {
+      this.log.error(`generateCropNames failed: ${(error as Error).message}`);
+      return [];
     }
   }
 
@@ -192,12 +159,14 @@ export class CropSuggestionService {
     throw new Error('Unreachable');
   }
 
-  private async fetchWeather(input: CropSuggestionInput, uid: string): Promise<WeatherAverages> {
+  private async fetchWeather(
+    location: CropSuggestionInput['location'],
+    uid: string
+  ): Promise<WeatherAverages> {
     this.emitProgress(uid, 'analyzing', 30, 'Fetching weather...');
-    const data = await new WeatherService(
-      input.location.latitude,
-      input.location.longitude
-    ).getWeatherAverages(16);
+    const data = await new WeatherService(location.latitude, location.longitude).getWeatherAverages(
+      16
+    );
     this.emitProgress(uid, 'analyzing', 40, 'Weather fetched.');
     return data;
   }

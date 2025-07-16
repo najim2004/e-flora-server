@@ -3,13 +3,20 @@ import { ValidationMiddleware } from '../middlewares/validation.middleware';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { CropSuggestionController } from '../controllers/cropSuggestion.controller';
 import { CropSuggestionValidation } from '../validations/cropSuggestion.validation';
-import { DiseaseDetectionValidation } from '../validations/0diseaseDetection.validation';
+import { DiseaseDetectionValidation } from '../validations/diseaseDetection.validation';
+import { FileUploadUtil } from '../utils/multer.util';
 
 export class CropSuggestionRouter {
   private router: Router;
+  private readonly uploadUtil: FileUploadUtil;
   private readonly cropSuggestionController: CropSuggestionController;
   constructor() {
     this.router = Router();
+    this.uploadUtil = new FileUploadUtil('temp-uploads', 5, [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+    ]);
     this.cropSuggestionController = new CropSuggestionController();
     this.initializeRoutes();
   }
@@ -18,7 +25,12 @@ export class CropSuggestionRouter {
     this.router.post(
       '/crop-suggestion',
       authMiddleware,
-      ValidationMiddleware.validateBody(CropSuggestionValidation.cropSuggestion),
+      this.uploadUtil.uploadSingle('image'),
+      ValidationMiddleware.validateBody(CropSuggestionValidation.cropSuggestion, req => {
+        if (req.file?.filename) {
+          this.uploadUtil.deleteFile(req.file.filename);
+        }
+      }),
       this.cropSuggestionController.generateCropSuggestion.bind(this.cropSuggestionController)
     );
     this.router.get(
@@ -33,11 +45,11 @@ export class CropSuggestionRouter {
       ValidationMiddleware.validateQuery(DiseaseDetectionValidation.historiesQuery),
       this.cropSuggestionController.getHistories.bind(this.cropSuggestionController)
     );
-    this.router.get(
-      '/crop-details/:slug',
-      ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetailsParam),
-      this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
-    );
+    // this.router.get(
+    //   '/crop-details/:slug',
+    //   ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetailsParam),
+    //   this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
+    // );
   }
   public getRouter(): Router {
     return this.router;
