@@ -1,4 +1,10 @@
-import { PlantType, Purpose, SoilType, Sunlight, WaterSource } from '../interfaces/cropSuggestionHistory.interface';
+import {
+  PlantType,
+  Purpose,
+  SoilType,
+  Sunlight,
+  WaterSource,
+} from '../interfaces/cropSuggestionHistory.interface';
 import { LocationWithAddress } from './common.types';
 export interface CropSuggestionInput {
   //common fields
@@ -17,4 +23,9 @@ export interface CropSuggestionInput {
 
   // for auto mode
   gardenId?: string;
+}
+
+export interface CropNames {
+  name: string;
+  scientificName: string;
 }

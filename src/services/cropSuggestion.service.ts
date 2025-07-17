@@ -1,9 +1,13 @@
-import { Crop, ICropRecommendations } from '../interfaces/crop.interface';
+import { ICrop } from '../interfaces/crop.interface';
 import { CropDetails } from '../models/cropDetails.model';
 import { CropRecommendations } from '../models/cropRecommendations.model';
 import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
-import { CropSuggestionInput, CropSuggestionStatus } from '../types/cropSuggestion.types';
+import {
+  CropNames,
+  CropSuggestionInput,
+  CropSuggestionStatus,
+} from '../types/cropSuggestion.types';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 import { WeatherAverages, WeatherService } from '../utils/weather.utils';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
@@ -14,6 +18,7 @@ import GeminiUtils from '../utils/gemini.utils';
 import { SocketServer } from '../socket.server';
 import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
 import { ICropDetails } from '../interfaces/cropDetails.interface';
+import { Crop } from '../models/crop.model';
 
 export class CropSuggestionService {
   private log: Logger;
@@ -29,12 +34,11 @@ export class CropSuggestionService {
   }
 
   public async generateCropSuggestion(input: CropSuggestionInput, userId: string): Promise<void> {
-    const key = this.genKey(input);
     this.emitProgress(userId, 'initiated', 10, 'Starting...');
     try {
       const weather = await this.fetchWeather(input.location, userId);
+      const cropNames = this.generateCropNames(input, weather);
 
-      const { recs, hist } = await this.createRecommendation(input, userId, key, weather);
       this.emitDone(userId, recs, hist);
       this.generateDetails(recs._id, recs.crops, userId).catch(e => {
         this.log.error(`generateDetails failed: ${(e as Error).message}`);
@@ -86,7 +90,7 @@ export class CropSuggestionService {
   private async generateCropNames(
     input: CropSuggestionInput,
     weather: WeatherAverages
-  ): Promise<{ name: string; scientificName: string }[]> {
+  ): Promise<CropNames[]> {
     try {
       if (!input.image) return [];
       const prompt = '...';
@@ -114,7 +118,7 @@ export class CropSuggestionService {
             typeof item === 'object' && item !== null && 'name' in item && 'scientificName' in item
         )
       ) {
-        return parsed as { name: string; scientificName: string }[];
+        return parsed as CropNames[];
       }
       return [];
     } catch (error) {
@@ -183,7 +187,7 @@ export class CropSuggestionService {
     }
   }
 
-  private async detailCrop(crop: Crop, uid: string): Promise<Crop> {
+  private async detailCrop(crop: ICrop, uid: string): Promise<ICrop> {
     try {
       const ex = await CropDetails.findOne({
         $or: [{ scientificName: crop.scientificName }, { name: crop.name }],
@@ -262,22 +266,24 @@ export class CropSuggestionService {
     };
   }
 
-  private async lookup(
-    model: typeof CropSuggestionHistory | typeof CropSuggestionCache,
-    query: Record<string, unknown>
-  ): Promise<Pick<ICropRecommendations, '_id' | 'crops' | 'cultivationTips' | 'weathers'> | null> {
-    const doc = await model.findOne(query).populate({
-      path: 'cropRecommendationsId',
-      select: 'crops weathers cultivationTips',
-    });
-    return doc?.cropRecommendationsId
-      ? {
-          _id: doc.cropRecommendationsId._id,
-          crops: doc.cropRecommendationsId.crops,
-          cultivationTips: doc.cropRecommendationsId.cultivationTips,
-          weathers: doc.cropRecommendationsId.weathers,
-        }
-      : null;
+  private async lookup(cropNames: CropNames[]): Promise<{
+    found: ICrop[];
+    notFound: CropNames[];
+  }> {
+    const regexArray = cropNames.map(c => new RegExp(`^${c.scientificName}$`, 'i'));
+
+    const crops = await Crop.find({
+      scientificName: { $in: regexArray },
+    }).select('-createdAt -updatedAt -__v');
+
+    const foundNames = new Set(crops.map(crop => crop.scientificName.toLowerCase()));
+
+    const notFound = cropNames.filter(c => !foundNames.has(c.scientificName.toLowerCase()));
+
+    return {
+      found: crops,
+      notFound,
+    };
   }
 
   private emitDone(
@@ -311,18 +317,6 @@ export class CropSuggestionService {
     msg: string
   ): void {
     this.socketHandler().emitProgress({ userId, status, progress, message: msg });
-  }
-
-  private genKey({
-    soilType,
-    farmSize,
-    irrigationAvailability,
-    location,
-  }: CropSuggestionInput): string {
-    const hash = ngeohash.encode(location.latitude, location.longitude, 5);
-    const size =
-      farmSize <= 1 ? 'small' : farmSize <= 5 ? 'medium' : farmSize <= 10 ? 'large' : 'xlarge';
-    return `${soilType}-${size}-${irrigationAvailability}-${hash}`;
   }
 
   private daysAgo(n: number): Date {
