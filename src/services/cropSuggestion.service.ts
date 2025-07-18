@@ -37,7 +37,13 @@ export class CropSuggestionService {
     this.emitProgress(userId, 'initiated', 10, 'Starting...');
     try {
       const weather = await this.fetchWeather(input.location, userId);
-      const cropNames = this.generateCropNames(input, weather);
+      const cropNames = await this.generateCropNames(input, weather);
+      const { found, notFound } = await this.lookup(cropNames);
+
+      if (notFound.length == 0) {
+        const hist = await this.saveHistory(input, userId, found, weather);
+        this.emitDone(userId, hist);
+      }
 
       this.emitDone(userId, recs, hist);
       this.generateDetails(recs._id, recs.crops, userId).catch(e => {
@@ -225,45 +231,32 @@ export class CropSuggestionService {
   }
 
   private async saveHistory(
-    data: Pick<
-      ICropSuggestionHistory,
-      | 'cacheKey'
-      | 'soilType'
-      | 'location'
-      | 'farmSize'
-      | 'irrigationAvailability'
-      | 'cropRecommendationsId'
-    > & {
-      userId: string;
-    },
-    session?: mongoose.ClientSession
-  ): Promise<
-    Pick<
-      ICropSuggestionHistory,
-      '_id' | 'soilType' | 'location' | 'farmSize' | 'irrigationAvailability'
-    >
-  > {
-    const [h] = await CropSuggestionHistory.create(
-      [
-        {
-          userId: new Types.ObjectId(data.userId),
-          soilType: data.soilType,
-          location: data.location,
-          farmSize: data.farmSize,
-          irrigationAvailability: data.irrigationAvailability,
-          cacheKey: data.cacheKey,
-          cropRecommendationsId: data.cropRecommendationsId,
+    input: Omit<CropSuggestionInput, 'image' | 'mode'>,
+    uid: string,
+    crops: ICrop[],
+    weather: WeatherAverages
+  ): Promise<ICropSuggestionHistory> {
+    const [h] = await CropSuggestionHistory.create([
+      {
+        userId: new Types.ObjectId(uid),
+        gardenId: input.gardenId,
+        input: {
+          location: input.location,
+          purpose: input.purpose,
+          sunlight: input.sunlight,
+          soilType: input.soilType,
+          area: input.area,
+          waterSource: input.waterSource,
+          plantType: input.plantType,
         },
-      ],
-      { session }
-    );
-    return {
-      _id: h._id,
-      soilType: h.soilType,
-      location: h.location,
-      farmSize: h.farmSize,
-      irrigationAvailability: h.irrigationAvailability,
-    };
+        weather: weather,
+        crops: crops.map(crop => ({
+          cropId: crop._id,
+          cropDetails: { status: 'pending' },
+        })),
+      },
+    ]);
+    return h.toObject();
   }
 
   private async lookup(cropNames: CropNames[]): Promise<{
@@ -286,19 +279,8 @@ export class CropSuggestionService {
     };
   }
 
-  private emitDone(
-    userId: string,
-    recs: Pick<ICropRecommendations, 'crops' | 'weathers' | 'cultivationTips' | '_id'>,
-    hist: Pick<
-      ICropSuggestionHistory,
-      '_id' | 'soilType' | 'location' | 'farmSize' | 'irrigationAvailability'
-    >
-  ): void {
-    this.socketHandler().emitCompleted(userId, {
-      ...hist,
-      _id: hist._id.toString(),
-      recommendations: { ...recs, _id: recs._id.toString() },
-    });
+  private emitDone(userId: string, hist: ICropSuggestionHistory): void {
+    this.socketHandler().emitCompleted(userId, hist);
   }
 
   private emitCropDetail(
