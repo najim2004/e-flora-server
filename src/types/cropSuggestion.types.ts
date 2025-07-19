@@ -25,7 +25,7 @@ export interface CropSuggestionInput {
   gardenId?: string;
 }
 
-export interface CropNames {
+export interface CropName {
   name: string;
   scientificName: string;
 }

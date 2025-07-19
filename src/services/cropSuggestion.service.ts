@@ -3,11 +3,7 @@ import { CropDetails } from '../models/cropDetails.model';
 import { CropRecommendations } from '../models/cropRecommendations.model';
 import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
-import {
-  CropNames,
-  CropSuggestionInput,
-  CropSuggestionStatus,
-} from '../types/cropSuggestion.types';
+import { CropName, CropSuggestionInput, CropSuggestionStatus } from '../types/cropSuggestion.types';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 import { WeatherAverages, WeatherService } from '../utils/weather.utils';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
@@ -19,6 +15,7 @@ import { SocketServer } from '../socket.server';
 import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 import { Crop } from '../models/crop.model';
+import { Image } from '../models/image.model';
 
 export class CropSuggestionService {
   private log: Logger;
@@ -96,7 +93,7 @@ export class CropSuggestionService {
   private async generateCropNames(
     input: CropSuggestionInput,
     weather: WeatherAverages
-  ): Promise<CropNames[]> {
+  ): Promise<CropName[]> {
     try {
       if (!input.image) return [];
       const prompt = '...';
@@ -124,11 +121,57 @@ export class CropSuggestionService {
             typeof item === 'object' && item !== null && 'name' in item && 'scientificName' in item
         )
       ) {
-        return parsed as CropNames[];
+        return parsed as CropName[];
       }
       return [];
     } catch (error) {
       this.log.error(`generateCropNames failed: ${(error as Error).message}`);
+      return [];
+    }
+  }
+
+  private async generateCrop(cropNames: CropName[]): Promise<ICrop[]> {
+    try {
+      const crops: ICrop[] = [];
+      cropNames.forEach(async element => {
+        const prompt = '...';
+
+        let rawCrop = (await this.gemini.generateResponse(prompt)) || '{}';
+        // Remove code block wrappers if present
+        rawCrop = rawCrop.trim();
+        if (rawCrop.startsWith('```')) {
+          rawCrop = rawCrop
+            .replace(/^```json?\n?/, '')
+            .replace(/```$/, '')
+            .trim();
+        }
+
+        const res = JSON.parse(rawCrop);
+        if (!res?.name || !res?.scientificName) throw new Error('crop generation failed');
+        const image = await Image.findOne({
+          index: res.scientificName,
+        });
+        const newCrop = await Crop.create({
+          scientificName: res.name,
+          imageId: image._id,
+          image: res.image,
+          difficulty: res.difficulty,
+          features: res.features,
+          description: res.description,
+          maturityTime: res.maturityTime,
+          plantingSeason: res.plantingSeason,
+          sunlight: res.sunlight,
+          waterNeed: res.waterNeed,
+          soilType: res.soilType,
+          details: {
+            status: 'pending',
+          },
+        });
+        crops.push(newCrop);
+      });
+      return crops;
+    } catch (error) {
+      this.log.error(`generateCrop failed: ${(error as Error).message}`);
       return [];
     }
   }
@@ -259,9 +302,9 @@ export class CropSuggestionService {
     return h.toObject();
   }
 
-  private async lookup(cropNames: CropNames[]): Promise<{
+  private async lookup(cropNames: CropName[]): Promise<{
     found: ICrop[];
-    notFound: CropNames[];
+    notFound: CropName[];
   }> {
     const regexArray = cropNames.map(c => new RegExp(`^${c.scientificName}$`, 'i'));
 
