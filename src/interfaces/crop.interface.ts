@@ -16,5 +16,6 @@ export interface ICrop extends CommonInMongoose {
   details: {
     status: 'pending' | 'success' | 'failed';
     detailsId?: Types.ObjectId;
+    slug?: string;
   };
 }

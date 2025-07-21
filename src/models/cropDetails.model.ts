@@ -193,6 +193,7 @@ cropDetailsSchema.post('save', async function (doc: Document & ICropDetails) {
         details: {
           status: 'success',
           detailsId: doc._id,
+          slug: doc.slug,
         },
       },
       { new: true }

@@ -1,14 +1,12 @@
 import { ICrop } from '../interfaces/crop.interface';
 import { CropDetails } from '../models/cropDetails.model';
-import { CropRecommendations } from '../models/cropRecommendations.model';
-import { CropSuggestionCache } from '../models/cropSuggestionCache.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
-import { CropName, CropSuggestionInput, CropSuggestionStatus } from '../types/cropSuggestion.types';
+import { CropName, CropSuggestionInput } from '../types/cropSuggestion.types';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 import { WeatherAverages, WeatherService } from '../utils/weather.utils';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
-import ngeohash from 'ngeohash';
-import mongoose, { Types } from 'mongoose';
+// import ngeohash from 'ngeohash';
+import { Types } from 'mongoose';
 import Logger from '../utils/logger';
 import GeminiUtils from '../utils/gemini.utils';
 import { SocketServer } from '../socket.server';
@@ -41,9 +39,10 @@ export class CropSuggestionService {
         const hist = await this.saveHistory(input, userId, found, weather);
         this.emitDone(userId, hist);
       }
-
-      this.emitDone(userId, recs, hist);
-      this.generateDetails(recs._id, recs.crops, userId).catch(e => {
+      const newCrops = await this.generateCrop(cropNames);
+      const hist = await this.saveHistory(input, userId, [...found, ...newCrops], weather);
+      this.emitDone(userId, hist);
+      this.generateDetails(notFound, userId).catch(e => {
         this.log.error(`generateDetails failed: ${(e as Error).message}`);
       });
     } catch (e) {
@@ -224,19 +223,28 @@ export class CropSuggestionService {
     return data;
   }
 
-  private async generateDetails(id: Types.ObjectId, crops: Crop[], uid: string): Promise<void> {
+  private async generateDetails(crops: CropName[], uid: string): Promise<void> {
     const updated = await Promise.all(crops.map(crop => this.detailCrop(crop, uid)));
     try {
-      await CropRecommendations.findByIdAndUpdate(id, { $set: { crops: updated } });
+      for (const crop of updated) {
+        if (!crop) {
+          continue;
+        }
+
+        await Crop.findOneAndUpdate(
+          { scientificName: crop.scientificName },
+          { $set: { details: updated } }
+        );
+      }
     } catch (e) {
-      this.log.error(`Crop detail update fail for ${id}: ${(e as Error).message}`);
-      await CropRecommendations.findByIdAndUpdate(id, {
-        $set: { crops: updated.map(c => ({ ...c, cropDetails: { status: 'failed' } })) },
-      });
+      this.log.error(`Crop detail update fail: ${(e as Error).message}`);
     }
   }
 
-  private async detailCrop(crop: ICrop, uid: string): Promise<ICrop> {
+  private async detailCrop(
+    crop: CropName,
+    uid: string
+  ): Promise<{ scientificName: string; status: string; name: string } | undefined> {
     try {
       const ex = await CropDetails.findOne({
         $or: [{ scientificName: crop.scientificName }, { name: crop.name }],
@@ -244,7 +252,6 @@ export class CropSuggestionService {
 
       if (ex) {
         this.emitCropDetail(uid, 'success', ex.scientificName, ex.slug);
-        return { ...crop, cropDetails: { status: 'success', id: ex._id, slug: ex.slug } };
       }
 
       let raw =
@@ -266,10 +273,9 @@ export class CropSuggestionService {
 
       const saved = await CropDetails.create(res);
       this.emitCropDetail(uid, 'success', saved.scientificName, saved.slug);
-      return { ...crop, cropDetails: { status: 'success', id: saved._id, slug: saved.slug } };
     } catch {
       this.emitCropDetail(uid, 'failed', crop.scientificName);
-      return { ...crop, cropDetails: { status: 'failed' } };
+      return { ...crop, status: 'failed' };
     }
   }
 
@@ -343,13 +349,6 @@ export class CropSuggestionService {
   ): void {
     this.socketHandler().emitProgress({ userId, status, progress, message: msg });
   }
-
-  private daysAgo(n: number): Date {
-    const d = new Date();
-    d.setDate(d.getDate() - n);
-    return d;
-  }
-
   private socketHandler(): CropSuggestionSocketHandler {
     return this.socket.cropSuggestion();
   }
