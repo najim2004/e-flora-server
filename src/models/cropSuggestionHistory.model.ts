@@ -36,6 +36,11 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
         enum: ['vegetable', 'fruit', 'flower', 'herb', 'tree', 'ornamental'],
         required: true,
       },
+      gardenType: {
+        type: String,
+        enum: ['rooftop', 'balcony', 'backyard', 'indoor', 'terrace', 'field'],
+        required: true,
+      },
     },
     crops: { type: Schema.Types.ObjectId, ref: 'Crop', required: true },
     weather: {

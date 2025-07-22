@@ -1,7 +1,93 @@
-import { CropSuggestionInput } from '../types/0cropSuggestion.types';
+import { CropSuggestionInput } from '../types/cropSuggestion.types';
 import { WeatherAverages } from '../utils/weather.utils';
 
 export class CropSuggestionPrompts {
+  public getCropNamesPrompt(
+    input: CropSuggestionInput & { weatherAverages: WeatherAverages }
+  ): string {
+    const {
+      plantType,
+      location,
+      gardenType,
+      area,
+      soilType,
+      sunlight,
+      waterSource,
+      purpose,
+      currentCrops,
+      gardenerType,
+      weatherAverages,
+      avoidCurrentCrops,
+    } = input;
+
+    return `
+        You are an expert agronomist AI assistant.
+
+        I need you to analyze a garden based on the following input and suggest **16 suitable plant names**. The garden image is attached separately — please analyze that image as part of your decision making.
+
+        Your response must be a **JSON array** of 16 objects containing:
+
+        - \`name\`: Common/local name
+        - \`scientificName\`: Botanical name
+
+        ---
+
+        🌿 **Garden Details:**
+
+        - Plant type: ${plantType}
+        - Gardener type: ${gardenerType}
+        - Garden type: ${gardenType}
+        - Location: ${location}
+        ${area ? `- Area: ${area} sq.ft` : ''}
+        ${soilType ? `- Soil type: ${soilType}` : ''}
+        ${sunlight ? `- Sunlight: ${sunlight}` : ''}
+        ${waterSource ? `- Water source: ${waterSource}` : ''}
+        ${purpose ? `- Purpose: ${purpose}` : ''}
+        ${currentCrops?.length ? `- Current crops: ${currentCrops.join(', ')}` : ''}
+        ${avoidCurrentCrops ? '- Avoid suggesting crops that are already being grown (see currentCrops)' : ''}
+
+        ---
+
+        🌦 **Weather Averages of the Area:**
+
+        - Avg Max Temperature: ${weatherAverages.avgMaxTemp} °C
+        - Avg Min Temperature: ${weatherAverages.avgMinTemp} °C
+        - Avg Humidity: ${weatherAverages.avgHumidity} %
+        - Avg Rainfall: ${weatherAverages.avgRainfall} mm
+        - Avg Wind Speed: ${weatherAverages.avgWindSpeed} km/h
+        - Dominant Wind Direction: ${weatherAverages.dominantWindDirection} °
+
+        ---
+
+        📄 **Instructions:**
+
+        - First, consider crops that grow well in the specified **location and weather**.
+        - Then, refine suggestions based on **plant type, garden conditions, gardener expertise, and purpose**.
+        ${
+          avoidCurrentCrops
+            ? '- Do NOT include any crops listed in \`currentCrops\`.'
+            : '- You may include crops from \`currentCrops\` if they match the criteria.'
+        }
+        - Use the attached image for context (sunlight, space, structure, etc.)
+
+        ---
+
+        💡 **Return only the JSON output in the following format:**
+
+        \`\`\`json
+        [
+        {
+            "name": "Tomato",
+            "scientificName": "Solanum lycopersicum"
+        },
+        ...
+        ]
+        \`\`\`
+
+        Do not return any explanation or extra text. Only the JSON array.
+        `.trim();
+  }
+
   public getCropRecommendationPrompt(input: CropSuggestionInput & WeatherAverages): string {
     return `You are an expert agricultural assistant AI with access to up-to-date agronomic data and seasonal crop knowledge. 
         Based on the provided input, you must return:

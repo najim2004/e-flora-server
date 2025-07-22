@@ -18,6 +18,8 @@ export type WaterSource = 'tube-well' | 'tap' | 'rainwater' | 'storage' | 'manua
 
 export type Purpose = 'eat' | 'sell' | 'decor' | 'educational' | 'mixed';
 export type PlantType = 'vegetable' | 'fruit' | 'flower' | 'herb' | 'tree' | 'ornamental';
+export type GardenType = 'rooftop' | 'balcony' | 'backyard' | 'indoor' | 'terrace' | 'field';
+export type GardenerType = 'beginner' | 'intermediate' | 'expert';
 
 export interface ICropSuggestionHistory extends CommonInMongoose {
   userId: Types.ObjectId;
@@ -30,6 +32,8 @@ export interface ICropSuggestionHistory extends CommonInMongoose {
     area: number;
     waterSource: WaterSource;
     plantType: PlantType;
+    gardenType: GardenType;
+    gardenerType: GardenerType;
   };
   crops: Types.ObjectId;
   weather: Weather;

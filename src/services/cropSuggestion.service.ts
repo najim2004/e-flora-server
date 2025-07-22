@@ -95,7 +95,7 @@ export class CropSuggestionService {
   ): Promise<CropName[]> {
     try {
       if (!input.image) return [];
-      const prompt = '...';
+      const prompt = this.prompt.getCropNamesPrompt({ ...input, weatherAverages: weather });
       const cropNames = await this.gemini.generateResponseWithImage(prompt, {
         path: input.image?.path,
         mimeType: input.image?.mimetype,
