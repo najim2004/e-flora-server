@@ -88,188 +88,178 @@ export class CropSuggestionPrompts {
         `.trim();
   }
 
-  public getCropRecommendationPrompt(input: CropSuggestionInput & WeatherAverages): string {
-    return `You are an expert agricultural assistant AI with access to up-to-date agronomic data and seasonal crop knowledge. 
-        Based on the provided input, you must return:
-        - Exactly 3 crop recommendations that are **ideal for the current month and weather** conditions.
-        - At least 3 sets of cultivation tips.
-        - Echo back the given weather data exactly as-is, without any changes.
-    
-        You must:
-        - Consider the **current time of the year (month and season)** and the **weather data** while selecting crops.
-        - Perform proper research to ensure the crops are realistically suitable for current conditions and input parameters.
-        - Ensure soil type, irrigation availability, and farm size are all factored into the recommendation.
-        - Strictly follow the JSON format given below.
-        - Do not generate any explanatory text or additional fields.
-        - Do not leave any field blank.
-        - Do not add any code block markers like \`\`\`json or \`\`\` around the output.
-        - Return only the raw JSON object exactly as specified, with no extra characters or formatting.
-    
-        ---
-    
-        ## INPUT
-    
-        - soilType: ${input.soilType}
-        - farmSize: ${input.farmSize}
-        - irrigationAvailability: ${input.irrigationAvailability}
-    
-        **Weather:**
-        - avgMaxTemp: ${input.avgMaxTemp}
-        - avgMinTemp: ${input.avgMinTemp}
-        - avgHumidity: ${input.avgHumidity}
-        - avgRainfall: ${input.avgRainfall}
-        - avgWindSpeed: ${input.avgWindSpeed}
-        - dominantWindDirection: "${input.dominantWindDirection}"
-    
-        ---
-    
-        ## OUTPUT FORMAT (strictly return valid JSON):
-    
-        Required JSON structure:
+  getCropEnrichmentPrompt(name: string, scientificName: string): string {
+    return `
+        You are a crop research assistant.
+
+        Based on trusted agronomic sources, generate complete data for the crop below:
+
+        - name: ${name}
+        - scientificName: ${scientificName}
+
+        Return a JSON object with:
+
+        - name
+        - scientificName
+        - difficulty: "very easy" | "easy" | "medium" | "hard"
+        - features: 2–5 short points
+        - description: 2–4 line paragraph
+        - maturityTime: e.g. "60–80 days"
+        - plantingSeason: e.g. "Spring", "Winter"
+        - sunlight: e.g. "full sun", "partial shade"
+        - waterNeed: e.g. "low", "moderate", "high"
+        - soilType: "loamy" | "sandy" | "clayey" | "silty" | "peaty" | "chalky"
+        - details:
+        - status: "pending"
+        - detailsId: null
+        - slug: kebab-case of name
+
+        📤 Output:
+        Only return a clean JSON object. No notes, no explanation.
+
+        \`\`\`json
         {
-            "crops": [
-                {
-                "icon": string,
-                "name": string,
-                "scientificName": string, 
-                "description": string,
-                "match": number (level is 0 to 100)
-                "cropDetails":{
-                    status:"pending"
-                    }
-                }
-            ],
-            "cultivationTips": [
-                {
-                "title": string,
-                "tips": string[]
-                }
-            ],
-            "weathers": {
-                "avgMaxTemp": number,
-                "avgMinTemp": number,
-                "avgHumidity": number,
-                "avgRainfall": number,
-                "avgWindSpeed": number,
-                "dominantWindDirection": string
-            }
-        }`;
+        "name": "Tomato",
+        "scientificName": "Solanum lycopersicum",
+        "difficulty": "easy",
+        "features": ["high yield", "disease resistant"],
+        "description": "Tomato is a popular crop grown for its edible fruit. It is widely used in cooking and salads.",
+        "maturityTime": "60–80 days",
+        "plantingSeason": "Spring and Summer",
+        "sunlight": "full sun",
+        "waterNeed": "moderate",
+        "soilType": "loamy",
+        "details": {
+            "status": "pending",
+            "detailsId": null,
+            "slug": "tomato"
+        }
+        }
+        \`\`\`
+        `.trim();
   }
 
-  public getCropDetailsPrompt(cropName: string, cropScientificName: string): string {
-    return `You are an advanced agricultural AI system with access to up-to-date and accurate crop cultivation data.
+  getCropDetailsPrompt(name: string, scientificName: string): string {
+    return `
+        You are a knowledgeable agriculture expert. Based only on the given crop name and its scientific name, generate complete crop information in the following JSON format. Use real-world, research-backed facts by checking online sources. For all currency values, always use Bangladeshi Taka (BDT). Keep explanations short but specific to reduce token usage. Omit any field if there's no reliable data.
 
-      Your task is to research and generate a complete and realistic JSON object for the crop "${cropName}" based on the schema below. Follow these rules strictly:
+        Crop Name: ${name}
+        Scientific Name: ${scientificName}
 
-      1. Research all data using reliable sources and include current, realistic information (including planting seasons, water needs, fertilizer requirements, common pests and diseases, economic data like costs, yield, and market price).
-      2. The output must follow the exact JSON structure as defined below — no extra or missing fields. 
-      3. Where the schema uses arrays (e.g., alternatives, cultivationGuides, pestsManagement, etc.), include at least 2–3 relevant items for each.
-      4. Maintain proper data types: string, number, arrays of string/objects as per schema.
-      5. Do not include any explanation, markdown, or formatting — return raw JSON only.
-      6. This data will be stored in a MongoDB database using a Mongoose schema. Structure and format must be perfect.
-      7.Must be use Bangladeshi currency value.
-
-      Schema structure:
-      {
-        name: { type: String, required: true },
-        scientificName: { type: String, required: true }, //must use this scientific name: ${cropScientificName} same to same
-        description: { type: String, required: true },
-        img: string,
-        alternatives: { type: string[], required: true },
-
-        season: {
-            planting: { type: String, required: true },
-            harvesting: { type: String, required: true },
-            duration: { type: String, required: true },
+        Now return a pure JSON (no extra text) following this structure:
+        {
+        "name": "${name}",
+        "scientificName": "${scientificName}",
+        "type": "",
+        "variety": "",
+        "description": "",
+        "tags": [],
+        "difficultyLevel": "",
+        "isPerennial": false,
+        "cropCycle": "",
+        "gardenTypeSuitability": {
+            "rooftop": { "suitable": true, "notes": "" },
+            "balcony": { "suitable": true, "notes": "" },
+            "land": { "suitable": true, "notes": "" }
         },
-
-        soil: {
-            types: { type: String, required: true },
-            ph: { type: String, required: true },
-            drainage: { type: String, required: true },
-        },
-        climate: {
-            temperature: { type: String, required: true }, //example: "20-30°C",
-            humidity: { type: String, required: true }, //example: "60-80%",
-            rainfall: { type: String, required: true }, //example: "1000-1500mm during growing season",
-        },
-        water: {
-            requirements: { type: String, required: true },
-            irrigationSchedule: { type: String, required: true },
-            criticalStage: { type: [String], required: true },
-        },
-
-        cultivationGuides: [
-            {
-                title: { type: String, required: true },
-                guides: { type: [String], required: true },
-            }
-        ],
-
-        management: {
-            fertilizer: {
-                nitrogen: { type: String, required: true },
-                phosphorus: { type: String, required: true },
-                potassium: { type: String, required: true },
-                Application: { type: [String], required: true },
+        "growthConditions": {
+            "plantingSeason": "",
+            "plantingTime": "",
+            "climate": "",
+            "temperatureRange": { "min": "", "max": "" },
+            "humidityRequirement": "",
+            "sunlight": "",
+            "soil": {
+            "type": "",
+            "pH": "",
+            "drainage": ""
             },
-            weedManagement: { type: [String], required: true },
-            pestsManagement: [
-                {
-                    name: { type: String, required: true },
-                    symptoms: { type: String, required: true },
-                    managements: { type: String, required: true },
-                }
+            "spacingRequirements": "",
+            "containerGardening": {
+            "canGrowInPots": true,
+            "potSize": "",
+            "potDepth": "",
+            "drainage": ""
+            }
+        },
+        "careRequirements": {
+            "water": {
+            "requirement": "",
+            "frequency": "",
+            "waterConservationTips": []
+            },
+            "fertilizer": {
+            "type": "",
+            "schedule": ""
+            },
+            "pruning": "",
+            "support": "",
+            "spaceOptimizationTips": [],
+            "toolsRequired": []
+        },
+        "growthAndHarvest": {
+            "propagationMethods": [],
+            "germinationTime": "",
+            "maturityTime": "",
+            "harvestTime": "",
+            "yieldPerPlant": "",
+            "harvestingTips": [],
+            "pollinationType": "",
+            "seasonalAdjustments": {
+            "rooftop": "",
+            "balcony": "",
+            "land": ""
+            }
+        },
+        "pestAndDiseaseManagement": {
+            "commonDiseases": [
+            {
+                "name": "",
+                "symptoms": "",
+                "treatment": ""
+            }
             ],
-            diseaseManagement: [
-                {
-                    name: { type: String, required: true },
-                    symptoms: { type: String, required: true },
-                    managements: { type: String, required: true },
-                }
+            "commonPests": [
+            {
+                "name": "",
+                "symptoms": "",
+                "treatment": ""
+            }
             ]
         },
-
-        harvesting: [
-            {
-                title: { type: String, required: true },
-                guides: { type: [String], required: true },
-            }
-        ],
-
-        economics: {
-            yield: {
-                average: { type: String, required: true },
-                potential: { type: String, required: true },
-                factorsAffectingYield: { type: String, required: true },
-            },
-            productionCosts: {
-                landPreparation: { cost: { type: Number, required: true }, percentage: { type: Number, required: true } },
-                seeds: { cost: { type: Number, required: true }, percentage: { type: Number, required: true } },
-                fertilizers: { cost: { type: Number, required: true }, percentage: { type: Number, required: true } },
-                irrigation: { cost: { type: Number, required: true }, percentage: { type: Number, required: true } },
-                plantProtection: { cost: { type: Number, required: true }, percentage: { type: Number, required: true } },
-                labor: { cost: { type: Number, required: true }, percentage: { type: Number, required: true } },
-                harvestingPostHarvest: { cost: { type: Number, required: true }, percentage: { type: Number, required: true } },
-                total: { type: Number, required: true },
-            },
-            market: {
-                price: { type: String, required: true },
-                demand: { type: String, required: true },
-                storageLife: { type: String, required: true },
-                priceFluctuation: { type: String, required: true },
-            },
-            profitabilityAnalysis: {
-                averageYield: { type: Number, required: true },
-                averagePrice: { type: Number, required: true },
-                grossRevenue: { type: Number, required: true },
-                totalCost: { type: Number, required: true },
-                netProfit: { type: Number, required: true },
-                benefitCostRatio: { type: Number, required: true },
-            }
+        "companionPlanting": {
+            "companionPlants": [
+            { "name": "", "benefit": "" }
+            ],
+            "avoidNear": [],
+            "notes": ""
+        },
+        "nutritionalAndCulinary": {
+            "nutritionalValue": "",
+            "healthBenefits": "",
+            "culinaryUses": "",
+            "storageTips": ""
+        },
+        "economicAspects": {
+            "marketDemand": "",
+            "seedSourcing": [
+            { "source": "", "details": "" }
+            ],
+            "costBreakdown": [
+            { "item": "", "cost": 0, "unit": "", "note": "" }
+            ]
+        },
+        "sustainabilityTips": [],
+        "aestheticValue": {
+            "description": "",
+            "tips": ""
+        },
+        "regionalSuitability": {
+            "suitableRegions": [],
+            "urbanGardeningNotes": ""
+        },
+        "funFacts": []
         }
-      }
-
-      Return only the valid JSON object.`;
+        `.trim();
   }
 }

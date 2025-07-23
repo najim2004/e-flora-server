@@ -8,12 +8,10 @@ const cropDetailsSchema = new Schema<ICropDetails>({
   type: { type: String, required: true },
   variety: { type: String, required: true },
   description: { type: String, required: true },
-  image: { type: Schema.Types.ObjectId, ref: 'Image' },
   tags: [{ type: String, required: true }],
   difficultyLevel: { type: String, required: true },
   isPerennial: { type: Boolean, required: true },
   cropCycle: { type: String, required: true },
-  lastUpdated: { type: String, required: true },
   gardenTypeSuitability: {
     rooftop: {
       suitable: { type: Boolean },

@@ -151,13 +151,11 @@ export interface ICropDetails extends CommonInMongoose {
   type: string;
   variety: string;
   description: string;
-  image: Types.ObjectId;
   slug: string;
   tags: string[];
   difficultyLevel: string;
   isPerennial: boolean;
   cropCycle: string;
-  lastUpdated: string;
   gardenTypeSuitability: GardenTypeSuitability;
   growthConditions: GrowthConditions;
   careRequirements: CareRequirements;

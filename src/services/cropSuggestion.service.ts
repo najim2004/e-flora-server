@@ -38,11 +38,18 @@ export class CropSuggestionService {
       if (notFound.length == 0) {
         const hist = await this.saveHistory(input, userId, found, weather);
         this.emitDone(userId, hist);
+        return;
       }
       const newCrops = await this.generateCrop(cropNames);
       const hist = await this.saveHistory(input, userId, [...found, ...newCrops], weather);
       this.emitDone(userId, hist);
-      this.generateDetails(notFound, userId).catch(e => {
+      const newCreatedCrops: (CropName & { _id: Types.ObjectId })[] = newCrops.map(c => ({
+        name: c.name,
+        scientificName: c.scientificName,
+        _id: c._id,
+      }));
+
+      this.generateDetails(newCreatedCrops, userId).catch(e => {
         this.log.error(`generateDetails failed: ${(e as Error).message}`);
       });
     } catch (e) {
@@ -133,7 +140,7 @@ export class CropSuggestionService {
     try {
       const crops: ICrop[] = [];
       cropNames.forEach(async element => {
-        const prompt = '...';
+        const prompt = this.prompt.getCropEnrichmentPrompt(element.name, element.scientificName);
 
         let rawCrop = (await this.gemini.generateResponse(prompt)) || '{}';
         // Remove code block wrappers if present
@@ -223,7 +230,10 @@ export class CropSuggestionService {
     return data;
   }
 
-  private async generateDetails(crops: CropName[], uid: string): Promise<void> {
+  private async generateDetails(
+    crops: (CropName & { _id: Types.ObjectId })[],
+    uid: string
+  ): Promise<void> {
     const updated = await Promise.all(crops.map(crop => this.detailCrop(crop, uid)));
     try {
       for (const crop of updated) {
@@ -242,7 +252,7 @@ export class CropSuggestionService {
   }
 
   private async detailCrop(
-    crop: CropName,
+    crop: CropName & { _id: Types.ObjectId },
     uid: string
   ): Promise<{ scientificName: string; status: string; name: string } | undefined> {
     try {
@@ -271,7 +281,7 @@ export class CropSuggestionService {
       const res = JSON.parse(raw);
       if (!res?.name) throw new Error('Invalid AI detail');
 
-      const saved = await CropDetails.create(res);
+      const saved = await CropDetails.create({ ...res, cropId: crop._id });
       this.emitCropDetail(uid, 'success', saved.scientificName, saved.slug);
     } catch {
       this.emitCropDetail(uid, 'failed', crop.scientificName);
