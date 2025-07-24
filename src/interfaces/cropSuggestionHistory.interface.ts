@@ -35,6 +35,6 @@ export interface ICropSuggestionHistory extends CommonInMongoose {
     gardenType: GardenType;
     gardenerType: GardenerType;
   };
-  crops: Types.ObjectId;
+  crops: Types.ObjectId[];
   weather: Weather;
 }

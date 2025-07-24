@@ -42,7 +42,7 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
         required: true,
       },
     },
-    crops: { type: Schema.Types.ObjectId, ref: 'Crop', required: true },
+    crops: [{ type: Schema.Types.ObjectId, ref: 'Crop', required: true }],
     weather: {
       avgMaxTemp: { type: Number, required: true },
       avgMinTemp: { type: Number, required: true },
