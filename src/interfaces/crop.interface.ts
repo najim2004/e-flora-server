@@ -4,7 +4,7 @@ import { CommonInMongoose } from './common.interface';
 export interface ICrop extends CommonInMongoose {
   name: string; // e.g. "Tomato"
   scientificName: string;
-  imageId: Types.ObjectId;
+  image: Types.ObjectId;
   difficulty: 'very easy' | 'easy' | 'medium' | 'hard';
   features?: string[]; // Max 3 short bullet features
   description?: string; // Short one-liner

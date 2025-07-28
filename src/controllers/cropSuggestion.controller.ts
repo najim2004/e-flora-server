@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import Logger from '../utils/logger';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import { CropSuggestionService } from '../services/cropSuggestion.service';
+import { Garden } from '../models/garden.model';
 
 export class CropSuggestionController {
   private readonly logger = Logger.getInstance('CropSuggestion');
@@ -17,12 +18,24 @@ export class CropSuggestionController {
   ): Promise<void> {
     try {
       const userId = req.user?._id;
+      let garden = null;
       if (!userId) throw new UnauthorizedError('User not authenticated');
+      if (!req.body.mode) throw new BadRequestError('Mode is required');
+      if (req.body.mode == 'auto' && req.body.gardenId) {
+        garden = await Garden.findById(req.body.gardenId)
+          .select(
+            'location sunlight soilType waterSource area gardenType gardenerType crops purpose'
+          )
+          .populate({
+            path: 'crops',
+            select: 'name',
+          });
+      }
       res.status(200).json({
         message: 'Request received, processing crop suggestion',
         success: true,
       });
-      this.cropSuggestionService.generateCropSuggestion(req.body, userId);
+      this.cropSuggestionService.generateCropSuggestion({ ...req.body, ...garden }, userId);
     } catch (error) {
       this.logger.logError(error as Error, 'CropSuggestion');
       next(error);

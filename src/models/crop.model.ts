@@ -4,7 +4,7 @@ import { ICrop } from '../interfaces/crop.interface';
 const CropSchema = new Schema<ICrop>({
   name: { type: String, required: true },
   scientificName: { type: String, required: true },
-  imageId: { type: Schema.Types.ObjectId, required: true },
+  image: { type: Schema.Types.ObjectId, required: true },
   difficulty: { type: String, enum: ['very easy', 'easy', 'medium', 'hard'], required: true },
   features: { type: [String] },
   description: { type: String },

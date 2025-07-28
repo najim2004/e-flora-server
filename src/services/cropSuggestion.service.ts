@@ -43,6 +43,17 @@ export class CropSuggestionService {
     }
   }
 
+  public async getOneHistory(id: string): Promise<ICropSuggestionHistory[]> {
+    return await CropSuggestionHistory.findById(id)
+      .select('-createdAt -updatedAt -__v')
+      .populate({
+        path: 'crops',
+        select: '-__v -createdAt -updatedAt',
+        populate: {
+          path: 'image',
+        },
+      });
+  }
   public async getHistories(
     userId: string,
     page = 1,
