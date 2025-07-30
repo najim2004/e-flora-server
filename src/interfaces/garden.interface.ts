@@ -1,14 +1,6 @@
 import { Types } from 'mongoose';
 import { CommonInMongoose } from './common.interface';
-import { Location as Loc } from './cropSuggestionHistory.interface';
-
-export interface Location extends Loc {
-  country: string;
-  state: string;
-  city: string;
-  zipCode: string;
-}
-
+import { LocationWithAddress } from '../types/common.types';
 export interface Weather {
   maxTemp: number;
   minTemp: number;
@@ -19,11 +11,18 @@ export interface Weather {
   date: Date;
 }
 
+export type SoilType = 'loamy' | 'sandy' | 'clayey' | 'silty' | 'peaty' | 'chalky' | 'unknown';
+export type Sunlight = 'full' | 'partial' | 'shade';
+export type WaterSource = 'tube-well' | 'tap' | 'rainwater' | 'storage' | 'manual' | 'uncertain';
+export type Purpose = 'eat' | 'sell' | 'decor' | 'educational' | 'mixed';
+export type GardenType = 'rooftop' | 'balcony' | 'backyard' | 'indoor' | 'terrace' | 'field';
+export type GardenerType = 'beginner' | 'intermediate' | 'expert';
+
 export interface IGarden extends CommonInMongoose {
   userId: Types.ObjectId;
   name: string;
   description: string;
-  location: Location;
+  location: LocationWithAddress;
   size: number;
   weather: Weather;
   crops: Types.ObjectId[];
@@ -31,9 +30,11 @@ export interface IGarden extends CommonInMongoose {
   activeCrops: number;
   pendingCrops: number;
   removedCrops: number;
-  type: string;
-  soilType: string[];
-  sunExposure: string;
-  waterSource: string;
   notes?: string;
+  gardenType: GardenType;
+  purpose: Purpose;
+  sunlight: Sunlight;
+  soilType: SoilType[];
+  waterSource: WaterSource;
+  gardenerType: GardenerType;
 }

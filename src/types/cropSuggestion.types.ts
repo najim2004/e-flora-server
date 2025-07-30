@@ -1,18 +1,18 @@
+import { PlantType } from '../interfaces/cropSuggestionHistory.interface';
 import {
   GardenerType,
   GardenType,
-  PlantType,
   Purpose,
   SoilType,
   Sunlight,
   WaterSource,
-} from '../interfaces/cropSuggestionHistory.interface';
+} from '../interfaces/garden.interface';
 import { LocationWithAddress } from './common.types';
 export interface CropSuggestionInput {
   //common fields
   plantType: PlantType;
   mode: 'manual' | 'auto';
-  avoidCurrentCrops:boolean;
+  avoidCurrentCrops: boolean;
 
   // for manual mode
   location: LocationWithAddress;
