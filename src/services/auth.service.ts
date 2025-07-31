@@ -36,7 +36,7 @@ export class AuthService {
     try {
       const user = await this.userModel
         .findOne({ email: credentials.email })
-        .select('_id role name email profileImage appPreferences password');
+        .select('_id role name email profileImage appPreferences password garden');
       if (!user) {
         throw new NotFoundError('User not found');
       }
@@ -51,6 +51,7 @@ export class AuthService {
         _id: user._id,
         email: user.email,
         role: user.role,
+        gardenId: user.garden?.toString() || '',
       });
 
       this.logger.info(`User logged in: ${user.email}`);

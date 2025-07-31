@@ -4,17 +4,16 @@ import { IGardenCrop } from '../interfaces/gardenCrop.interface';
 const gardenCropSchema = new Schema<IGardenCrop>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    gardenId: { type: Schema.Types.ObjectId, ref: 'Garden', required: true },
+    garden: { type: Schema.Types.ObjectId, ref: 'Garden', required: true },
     cropName: { type: String, required: true },
     scientificName: String,
+    description: { type: String },
     status: {
       type: String,
-      enum: ['pending', 'active', 'removed'],
       default: 'pending',
     },
     currentStage: {
       type: String,
-      enum: ['sowing', 'germination', 'flowering', 'maturing', 'harvested'],
     },
     plantingDate: Date,
     expectedHarvestDate: Date,
@@ -35,7 +34,7 @@ const gardenCropSchema = new Schema<IGardenCrop>(
 gardenCropSchema.post('save', async function (doc, next) {
   try {
     const { Garden } = await import('./garden.model');
-    const garden = await Garden.findById(doc.gardenId);
+    const garden = await Garden.findById(doc.garden);
     if (garden && !garden.crops.includes(doc._id)) {
       garden.crops.push(doc._id);
       await garden.save();

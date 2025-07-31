@@ -1,8 +1,12 @@
 import { IDiseaseDetection } from '../interfaces/diseaseDetection.interface';
 import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.interface';
 
-export interface InputDetectDisease
-  extends Pick<IDiseaseDetectionHistory, 'cropName' | 'description'> {
+export interface InputDetectDisease {
+  mode: 'manual' | 'auto';
+  cropName?: string;
+  description?: string;
+  cropId?: string;
+  gardenId?: string;
   userId: string;
   image: Express.Multer.File;
 }

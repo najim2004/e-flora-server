@@ -17,12 +17,12 @@ export class CropSuggestionController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const userId = req.user?._id;
+      const user = req.user;
       let garden = null;
-      if (!userId) throw new UnauthorizedError('User not authenticated');
+      if (!user?._id) throw new UnauthorizedError('User not authenticated');
       if (!req.body.mode) throw new BadRequestError('Mode is required');
-      if (req.body.mode == 'auto' && req.body.gardenId) {
-        garden = await Garden.findById(req.body.gardenId)
+      if (req.body.mode == 'auto' && user?.gardenId) {
+        garden = await Garden.findById(user?.gardenId)
           .select(
             'location sunlight soilType waterSource area gardenType gardenerType crops purpose'
           )
@@ -35,7 +35,7 @@ export class CropSuggestionController {
         message: 'Request received, processing crop suggestion',
         success: true,
       });
-      this.cropSuggestionService.generateCropSuggestion({ ...req.body, ...garden }, userId);
+      this.cropSuggestionService.generateCropSuggestion({ ...req.body, ...garden }, user?._id);
     } catch (error) {
       this.logger.logError(error as Error, 'CropSuggestion');
       next(error);

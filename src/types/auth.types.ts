@@ -24,5 +24,6 @@ export enum UserRole {
 export interface TokenPayload {
   _id: string;
   email: string;
+  gardenId: string;
   role?: UserRole;
 }

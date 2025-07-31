@@ -15,6 +15,7 @@ import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.
 import { SocketServer } from '../socket.server';
 import { IDiseaseDetection } from '../interfaces/diseaseDetection.interface';
 import { DiseaseDetectionSocketHandler } from '../socket/diseaseDetection.socket';
+import { GardenCrop } from '../models/gardenCrop.model';
 
 export class DiseaseDetectionService {
   private logger: Logger;
@@ -29,7 +30,26 @@ export class DiseaseDetectionService {
   public async detectDisease(input: InputDetectDisease): Promise<void> {
     const session = await mongoose.startSession();
     session.startTransaction();
-    const { userId, cropName, description, image } = input;
+
+    const { userId, image, description } = input;
+    let cropName, gardenId, cropId;
+    if (input.mode === 'manual') {
+      cropName = input.cropName?.trim();
+      if (!cropName || !description) {
+        throw new Error('Crop name, description are required for manual detection.');
+      }
+    } else {
+      if (!input.cropId || !input.gardenId) {
+        throw new Error('Crop ID and Garden ID are required for auto detection.');
+      }
+      gardenId = input.gardenId;
+      cropId = input.cropId;
+      const cropDetails = await this.getCropDetailsFromGarden(gardenId, cropId);
+      if (!cropDetails) {
+        throw new Error('Crop not found in the specified garden.');
+      }
+      cropName = cropDetails.cropName;
+    }
     let uploadedId: string | undefined;
 
     try {
@@ -87,6 +107,17 @@ export class DiseaseDetectionService {
     } finally {
       session.endSession();
     }
+  }
+
+  private async getCropDetailsFromGarden(
+    gardenId: string,
+    cropId: string
+  ): Promise<{ cropName: string; createdAt: Date; currentStage: string } | null> {
+    const crop = await GardenCrop.findOne({ _id: cropId, garden: gardenId }).select(
+      'cropName createdAt currentStage'
+    );
+
+    return crop?.toObject();
   }
 
   private async finalize(
@@ -149,7 +180,6 @@ export class DiseaseDetectionService {
     });
     if (!disease || ['ERROR_INVALID_IMAGE', 'NO_DISEASE_DETECTED'].includes(disease))
       throw new Error('Image not valid or no disease detected.');
-    console.log('THIS LINE BY ME', disease);
     const embedded = await this.gemini.generateEmbedding(disease);
     if (!embedded.length) throw new Error('Embedding generation failed.');
     return { diseaseName: disease, embedded };
@@ -172,7 +202,6 @@ export class DiseaseDetectionService {
     | 'embedded'
   > | null> {
     const results = await DiseaseDetectionService.search(name, session);
-    console.log('THIS IS SECOND LINE', results);
     if (!results.length) return null;
     return DiseaseDetectionService.findBestMatch(results, embed);
   }

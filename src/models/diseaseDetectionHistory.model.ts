@@ -10,34 +10,32 @@ const DiseaseDetectionHistorySchema = new Schema<IDiseaseDetectionHistory>(
     },
     cropName: {
       type: String,
-      required: true,
       trim: true,
+    },
+    garden: {
+      type: Schema.Types.ObjectId,
+      ref: 'Garden',
+    },
+    crop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Crop',
     },
     description: {
       type: String,
       trim: true,
     },
     image: {
-      url: {
-        type: String,
-        required: true,
-      },
-      id: {
-        type: String,
-        required: true,
-      },
+      type: Schema.Types.ObjectId,
+      required: true,
+      ref: 'Image',
     },
     detectedDisease: {
-      status: {
-        type: String,
-        enum: ['pending', 'success', 'failed'],
-        default: 'pending',
-      },
-      id: {
-        type: Schema.Types.ObjectId,
-        required: true,
-        ref: 'DiseaseDetection',
-      },
+      type: Schema.Types.ObjectId,
+      required: true,
+      ref: 'DiseaseDetection',
+    },
+    cta: {
+      type: Boolean,
     },
   },
   {

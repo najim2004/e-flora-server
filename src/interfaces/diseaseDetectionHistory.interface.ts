@@ -1,16 +1,13 @@
-import { ObjectId } from 'mongoose';
+import { Types } from 'mongoose';
 import { CommonInMongoose } from './common.interface';
 
 export interface IDiseaseDetectionHistory extends CommonInMongoose {
-  userId: ObjectId;
+  userId: Types.ObjectId;
   cropName: string;
   description: string;
-  image: {
-    url: string;
-    id: string;
-  };
-  detectedDisease: {
-    status: 'pending' | 'success' | 'failed';
-    id?: ObjectId;
-  };
+  image: Types.ObjectId;
+  garden: Types.ObjectId;
+  crop: Types.ObjectId;
+  detectedDisease: Types.ObjectId;
+  cta:boolean;
 }
