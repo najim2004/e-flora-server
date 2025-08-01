@@ -15,72 +15,39 @@ import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.
 import { SocketServer } from '../socket.server';
 import { IDiseaseDetection } from '../interfaces/diseaseDetection.interface';
 import { DiseaseDetectionSocketHandler } from '../socket/diseaseDetection.socket';
-import { GardenCrop } from '../models/gardenCrop.model';
+import { Image } from '../models/image.model';
 
 export class DiseaseDetectionService {
   private logger: Logger;
   private gemini = gemini;
   private uploader: FileUploadUtil;
   private socket: SocketServer;
+
   constructor() {
     this.logger = Logger.getInstance('DiseaseDetection');
     this.uploader = new FileUploadUtil('temp-uploads', 5, ['image/jpeg', 'image/png', 'image/jpg']);
     this.socket = SocketServer.getInstance();
   }
+
   public async detectDisease(input: InputDetectDisease): Promise<void> {
     const session = await mongoose.startSession();
     session.startTransaction();
 
-    const { userId, image, description } = input;
-    let cropName, gardenId, cropId;
-    if (input.mode === 'manual') {
-      cropName = input.cropName?.trim();
-      if (!cropName || !description) {
-        throw new Error('Crop name, description are required for manual detection.');
-      }
-    } else {
-      if (!input.cropId || !input.gardenId) {
-        throw new Error('Crop ID and Garden ID are required for auto detection.');
-      }
-      gardenId = input.gardenId;
-      cropId = input.cropId;
-      const cropDetails = await this.getCropDetailsFromGarden(gardenId, cropId);
-      if (!cropDetails) {
-        throw new Error('Crop not found in the specified garden.');
-      }
-      cropName = cropDetails.cropName;
-    }
+    const { userId, image, description, cropName, cropId, gardenId } = input;
     let uploadedId: string | undefined;
 
     try {
       this.emitProgress(userId, 'initiated', 5, 'Starting detection process...');
-
-      const byName = await this.getByCropName(cropName, session);
-      if (byName)
-        return await this.finalize(
-          userId,
-          image.path,
-          await this.addHistory(userId, cropName, description, image, byName._id, session),
-          session,
-          'Detection completed using existing data.'
-        );
-
       this.emitProgress(userId, 'analyzing', 20, 'Analyzing image and generating embeddings...');
+
       const { diseaseName, embedded } = await this.detectAndEmbed(cropName, image, description);
-
-      const byEmbed = await this.getByEmbedding(diseaseName, embedded, session);
-      if (byEmbed)
-        return await this.finalize(
-          userId,
-          image.path,
-          await this.addHistory(userId, cropName, description, image, byEmbed._id, session),
-          session,
-          'Detection completed using existing embedded data.'
-        );
-
-      this.emitProgress(userId, 'generatingData', 60, 'Generating new disease details...');
-      const newDetails = await this.generateDetails(diseaseName, cropName, description);
-      const [saved] = await DiseaseDetection.create([{ ...newDetails, embedded }], { session });
+      const match = await this.findOrCreateDisease(
+        diseaseName,
+        embedded,
+        cropName,
+        description,
+        session
+      );
 
       this.emitProgress(userId, 'savingToDB', 80, 'Saving detection history...');
       const history = await this.addHistory(
@@ -88,20 +55,16 @@ export class DiseaseDetectionService {
         cropName,
         description,
         image,
-        saved._id,
-        session
-      );
-      await this.finalize(
-        userId,
-        image.path,
-        history,
+        match._id,
         session,
-        'New disease detected and history saved.'
+        gardenId,
+        cropId
       );
+      await this.finalize(userId, image.path, history, session, 'Detection completed.');
     } catch (e) {
       await session.abortTransaction();
-      this.logger.logError(e as Error, `Detection failed for ${input.userId}, ${input.cropName}`);
-      this.socketHndlr().emitError(input.userId, `Failed: ${(e as Error).message}`);
+      this.logger.logError(e as Error, `Detection failed for ${userId}, ${cropName}`);
+      this.socketHndlr().emitError(userId, `Failed: ${(e as Error).message}`);
       if (image?.path) this.uploader.deleteFile(image.path);
       if (uploadedId) await imageKitUtil.deleteImage(uploadedId);
     } finally {
@@ -109,15 +72,109 @@ export class DiseaseDetectionService {
     }
   }
 
-  private async getCropDetailsFromGarden(
-    gardenId: string,
-    cropId: string
-  ): Promise<{ cropName: string; createdAt: Date; currentStage: string } | null> {
-    const crop = await GardenCrop.findOne({ _id: cropId, garden: gardenId }).select(
-      'cropName createdAt currentStage'
+  private async findOrCreateDisease(
+    diseaseName: string,
+    embedded: number[],
+    cropName: string,
+    description: string | undefined,
+    session: mongoose.ClientSession
+  ): Promise<IDiseaseDetection> {
+    const existing = await this.getByEmbedding(diseaseName, embedded, session);
+    if (existing) return existing;
+
+    this.emitProgress('', 'generatingData', 60, 'Generating new disease details...');
+    const newDetails = await this.generateDetails(diseaseName, cropName, description);
+    const [saved] = await DiseaseDetection.create([{ ...newDetails, embedded }], { session });
+    return saved;
+  }
+
+  private async detectAndEmbed(
+    name: string,
+    img: Express.Multer.File,
+    desc?: string
+  ): Promise<{ diseaseName: string; embedded: number[] }> {
+    const prompt = DiseaseDetectionPrompt.getDiseaseNameGettingPrompt(name, desc);
+    const disease = await this.gemini.generateResponseWithImage(prompt, {
+      path: img.path,
+      mimeType: img.mimetype,
+    });
+    if (!disease || ['ERROR_INVALID_IMAGE', 'NO_DISEASE_DETECTED'].includes(disease))
+      throw new Error('Invalid image or no disease.');
+    const embedded = await this.gemini.generateEmbedding(disease);
+    if (!embedded.length) throw new Error('Embedding failed.');
+    return { diseaseName: disease, embedded };
+  }
+
+  private async generateDetails(
+    name: string,
+    crop: string,
+    desc?: string
+  ): Promise<OutputDetectDisease> {
+    let raw = await this.gemini.generateResponse(
+      DiseaseDetectionPrompt.getNewDiseaseDetectionGeneratingPrompt(name, crop, desc)
+    );
+    if (!raw) throw new Error('AI failed to generate details.');
+
+    raw = raw
+      .trim()
+      .replace(/^```json?\n?/, '')
+      .replace(/```$/, '')
+      .trim();
+    const parsed = JSON.parse(raw);
+    if (!parsed.diseaseName || !parsed.symptoms || !parsed.treatment)
+      throw new Error('Incomplete AI data.');
+    return parsed;
+  }
+
+  private async getByEmbedding(
+    name: string,
+    embed: number[],
+    session: mongoose.ClientSession
+  ): Promise<IDiseaseDetection | null> {
+    const results = await DiseaseDetectionService.search(name, session);
+    return DiseaseDetectionService.findBestMatch(results, embed);
+  }
+
+  private async addHistory(
+    userId: string,
+    crop: string,
+    desc: string | undefined,
+    img: Express.Multer.File,
+    diseaseId: Types.ObjectId,
+    session: mongoose.ClientSession,
+    gardenId?: string,
+    cropId?: string
+  ): Promise<IDiseaseDetectionHistory> {
+    const uploaded = await this.uploadImage(img);
+    this.uploader.deleteFile(img.path);
+    const [imageDoc] = await Image.create(
+      [{ url: uploaded.url, imageId: uploaded.id, index: 'disease' }],
+      { session }
     );
 
-    return crop?.toObject();
+    const history = await DiseaseDetectionHistory.create(
+      [
+        {
+          userId: new Types.ObjectId(userId),
+          cropName: crop,
+          description: desc,
+          detectedDisease: diseaseId,
+          image: imageDoc._id,
+          cta: !!(gardenId && cropId),
+          ...(gardenId &&
+            cropId && { garden: new Types.ObjectId(gardenId), crop: new Types.ObjectId(cropId) }),
+        },
+      ],
+      { session }
+    );
+
+    return history[0];
+  }
+
+  private async uploadImage(image: Express.Multer.File): Promise<{ url: string; id: string }> {
+    const res = await imageKitUtil.uploadImage(image.path, image.originalname, 'disease-detection');
+    if (!res.url || !res.fileId) throw new Error('Upload failed.');
+    return { url: res.url, id: res.fileId };
   }
 
   private async finalize(
@@ -133,213 +190,23 @@ export class DiseaseDetectionService {
     this.socketHndlr().emitFinalResult(userId, { resultId: history._id.toString() });
   }
 
-  private async getByCropName(
-    name: string,
-    session: mongoose.ClientSession
-  ): Promise<Pick<
-    IDiseaseDetection,
-    | '_id'
-    | 'cropName'
-    | 'description'
-    | 'diseaseName'
-    | 'symptoms'
-    | 'treatment'
-    | 'causes'
-    | 'preventiveTips'
-  > | null> {
-    // Check if name contains any invalid terms using regex
-    const invalidPattern = /(unknown|n\/?a|null)/i;
-    if (!name || invalidPattern.test(name)) {
-      return null;
-    }
-
-    const h = await DiseaseDetectionHistory.findOne({
-      cropName: name,
-      'detectedDisease.status': 'success',
-    })
-      .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
-      .session(session)
-      .exec();
-
-    return h?.detectedDisease?.id
-      ? { ...h?.detectedDisease?.id.toObject(), _id: h?.detectedDisease?.id._id }
-      : DiseaseDetection.findOne({ cropName: name })
-          .select('-__v -createdAt -updatedAt -embedded')
-          .session(session);
-  }
-
-  private async detectAndEmbed(
-    name: string,
-    img: Express.Multer.File,
-    desc?: string
-  ): Promise<{ diseaseName: string; embedded: number[] }> {
-    const prompt = DiseaseDetectionPrompt.getDiseaseNameGettingPrompt(name, desc);
-    const disease = await this.gemini.generateResponseWithImage(prompt, {
-      path: img.path,
-      mimeType: img.mimetype,
-    });
-    if (!disease || ['ERROR_INVALID_IMAGE', 'NO_DISEASE_DETECTED'].includes(disease))
-      throw new Error('Image not valid or no disease detected.');
-    const embedded = await this.gemini.generateEmbedding(disease);
-    if (!embedded.length) throw new Error('Embedding generation failed.');
-    return { diseaseName: disease, embedded };
-  }
-
-  private async getByEmbedding(
-    name: string,
-    embed: number[],
-    session: mongoose.ClientSession
-  ): Promise<Pick<
-    IDiseaseDetection,
-    | '_id'
-    | 'cropName'
-    | 'description'
-    | 'diseaseName'
-    | 'symptoms'
-    | 'treatment'
-    | 'causes'
-    | 'preventiveTips'
-    | 'embedded'
-  > | null> {
-    const results = await DiseaseDetectionService.search(name, session);
-    if (!results.length) return null;
-    return DiseaseDetectionService.findBestMatch(results, embed);
-  }
-
-  private async addHistory(
+  private emitProgress(
     userId: string,
-    crop: string,
-    desc: string | undefined,
-    img: Express.Multer.File,
-    diseaseId: Types.ObjectId,
-    session: mongoose.ClientSession
-  ): Promise<IDiseaseDetectionHistory> {
-    let uploaded;
-    try {
-      uploaded = await this.uploadImage(img);
-      this.uploader.deleteFile(img.path);
-      const [h] = await DiseaseDetectionHistory.create(
-        [
-          {
-            userId,
-            cropName: crop,
-            description: desc,
-            detectedDisease: { status: 'success', id: diseaseId },
-            image: uploaded,
-          },
-        ],
-        { session }
-      );
-      return h;
-    } catch (err) {
-      if (uploaded?.id) await imageKitUtil.deleteImage(uploaded.id);
-      this.logger.logError(err as Error, 'Error saving history.');
-      throw err;
-    }
+    status: DiseaseDetectionStatus,
+    progress: number,
+    message: string
+  ): Promise<void> {
+    return this.socketHndlr().emitProgressUpdate({ userId, status, progress, message });
   }
 
-  private async generateDetails(
-    name: string,
-    crop: string,
-    desc?: string
-  ): Promise<OutputDetectDisease> {
-    const prompt = DiseaseDetectionPrompt.getNewDiseaseDetectionGeneratingPrompt(name, crop, desc);
-    let raw = await this.gemini.generateResponse(prompt);
-    if (!raw) throw new Error('AI failed to generate details.');
-    // Remove code block wrappers if present
-    raw = raw.trim();
-    if (raw.startsWith('```')) {
-      raw = raw
-        .replace(/^```json?\n?/, '')
-        .replace(/```$/, '')
-        .trim();
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed.diseaseName || !parsed.symptoms || !parsed.treatment)
-      throw new Error('Incomplete disease data.');
-    return parsed;
-  }
-
-  private async uploadImage(image: Express.Multer.File): Promise<{ url: string; id: string }> {
-    const upload = await imageKitUtil.uploadImage(
-      image.path,
-      image.originalname,
-      'disease-detection'
-    );
-    if (!upload.url || !upload.fileId) throw new Error('Upload failed.');
-    return { url: upload.url, id: upload.fileId };
-  }
-
-  private static findBestMatch(
-    data: Pick<
-      IDiseaseDetection,
-      | '_id'
-      | 'cropName'
-      | 'description'
-      | 'diseaseName'
-      | 'symptoms'
-      | 'treatment'
-      | 'causes'
-      | 'preventiveTips'
-      | 'embedded'
-    >[],
-    query: number[],
-    threshold = 0.8 // default threshold
-  ): Pick<
-    IDiseaseDetection,
-    | '_id'
-    | 'cropName'
-    | 'description'
-    | 'diseaseName'
-    | 'symptoms'
-    | 'treatment'
-    | 'causes'
-    | 'preventiveTips'
-    | 'embedded'
-  > | null {
-    const best = data.reduce<{
-      doc: Pick<
-        IDiseaseDetection,
-        | '_id'
-        | 'cropName'
-        | 'description'
-        | 'diseaseName'
-        | 'symptoms'
-        | 'treatment'
-        | 'causes'
-        | 'preventiveTips'
-        | 'embedded'
-      > | null;
-      score: number;
-    }>(
-      (best, curr) => {
-        const score = GeminiUtils.calculateCosineSimilarity(query, curr.embedded || []);
-        return score > best.score ? { doc: curr, score } : best;
-      },
-      { doc: null, score: -Infinity }
-    );
-
-    // Return only if best match meets threshold
-    return best.score >= threshold ? best.doc : null;
+  private socketHndlr(): DiseaseDetectionSocketHandler {
+    return this.socket.diseaseDetection();
   }
 
   static async search(
     query: string,
     session: mongoose.ClientSession
-  ): Promise<
-    Pick<
-      IDiseaseDetection,
-      | '_id'
-      | 'cropName'
-      | 'description'
-      | 'diseaseName'
-      | 'symptoms'
-      | 'treatment'
-      | 'causes'
-      | 'preventiveTips'
-      | 'embedded'
-    >[]
-  > {
+  ): Promise<Partial<IDiseaseDetection>[]> {
     const tokens = query.toLowerCase().split(/\s+/);
     if (!tokens.length) return [];
 
@@ -388,17 +255,22 @@ export class DiseaseDetectionService {
       { $project: { matchScore: 0, __v: 0, createdAt: 0, updatedAt: 0 } },
     ];
 
-    return await DiseaseDetection.aggregate(aggregation).session(session).exec();
+    return DiseaseDetection.aggregate(aggregation).session(session).exec();
   }
-  private emitProgress = (
-    userId: string,
-    status: DiseaseDetectionStatus,
-    progress: number,
-    message: string
-  ): Promise<void> => this.socketHndlr().emitProgressUpdate({ userId, status, progress, message });
 
-  private socketHndlr(): DiseaseDetectionSocketHandler {
-    return this.socket.diseaseDetection();
+  private static findBestMatch(
+    data: Partial<IDiseaseDetection>[],
+    query: number[],
+    threshold = 0.8
+  ): IDiseaseDetection | null {
+    const best = data.reduce<{ doc: Partial<IDiseaseDetection> | null; score: number }>(
+      (acc, curr) => {
+        const score = GeminiUtils.calculateCosineSimilarity(query, curr.embedded || []);
+        return score > acc.score ? { doc: curr, score } : acc;
+      },
+      { doc: null, score: -Infinity }
+    );
+    return best.score >= threshold ? (best.doc as IDiseaseDetection) : null;
   }
 
   public async getSingleResult(
@@ -406,7 +278,7 @@ export class DiseaseDetectionService {
     historyId: string
   ): Promise<IDiseaseDetectionHistory | null> {
     if (!Types.ObjectId.isValid(historyId)) return null;
-    return await DiseaseDetectionHistory.findOne({ _id: historyId, userId })
+    return DiseaseDetectionHistory.findOne({ _id: historyId, userId })
       .select('-__v -createdAt -updatedAt -cacheKey -userId')
       .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
       .exec();

@@ -2,8 +2,7 @@ import { IDiseaseDetection } from '../interfaces/diseaseDetection.interface';
 import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.interface';
 
 export interface InputDetectDisease {
-  mode: 'manual' | 'auto';
-  cropName?: string;
+  cropName: string;
   description?: string;
   cropId?: string;
   gardenId?: string;
