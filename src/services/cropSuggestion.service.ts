@@ -9,7 +9,7 @@ import Logger from '../utils/logger';
 import GeminiUtils from '../utils/gemini.utils';
 import { CropSuggestionPrompts } from '../prompts/cropSuggestion.prompts';
 import { SocketServer } from '../socket.server';
-// import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
+import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 import { ICrop } from '../interfaces/crop.interface';
@@ -17,10 +17,15 @@ import { ICrop } from '../interfaces/crop.interface';
 type MinimalCrop = CropName & { _id: Types.ObjectId };
 
 export class CropSuggestionService {
-  private log = Logger.getInstance('CropSuggestion');
+  private log: Logger;
   private gemini = new GeminiUtils();
   private prompt = new CropSuggestionPrompts();
-  private socket = SocketServer.getInstance().cropSuggestion();
+  private socket: SocketServer;
+
+  constructor() {
+    this.socket = SocketServer.getInstance();
+    this.log = Logger.getInstance('CropSuggestion');
+  }
 
   public async generateCropSuggestion(input: CropSuggestionInput, userId: string): Promise<void> {
     this.emitProgress(userId, 'initiated', 10, 'Starting...');
@@ -31,7 +36,7 @@ export class CropSuggestionService {
       const newCrops = notFound.length ? await this.saveNewCrops(notFound) : [];
       const allCrops = [...found, ...newCrops];
       const history = await this.saveHistory(input, userId, allCrops, weather);
-      this.emitDone(userId, history);
+      this.emitDone(userId, history._id.toString());
       if (newCrops.length)
         this.generateDetails(
           newCrops.map(c => ({ ...c, _id: c._id })),
@@ -39,7 +44,7 @@ export class CropSuggestionService {
         );
     } catch (e) {
       this.log.error(`User ${userId}: ${(e as Error).message}`);
-      this.socket.emitFailed(userId, 'Generation failed. Try again.');
+      this.socketHndlr().emitFailed(userId, 'Generation failed. Try again.');
     }
   }
 
@@ -208,12 +213,17 @@ export class CropSuggestionService {
     }
   }
 
-  private emitProgress(uid: string, status: string, progress: number, msg: string): void {
-    this.socket.emitProgress({ userId: uid, status, progress, message: msg });
+  private emitProgress(
+    uid: string,
+    status: 'initiated' | 'analyzing' | 'generatingData' | 'savingToDB' | 'completed' | 'failed',
+    progress: number,
+    msg: string
+  ): void {
+    this.socketHndlr().emitProgress({ userId: uid, status, progress, message: msg });
   }
 
-  private emitDone(uid: string, hist: ICropSuggestionHistory): void {
-    this.socket.emitCompleted(uid, hist);
+  private emitDone(uid: string, histId: string): void {
+    this.socketHndlr().emitCompleted(uid, { resultId: histId });
   }
 
   private emitCropDetail(
@@ -222,6 +232,9 @@ export class CropSuggestionService {
     sci: string,
     slug?: string
   ): void {
-    this.socket.emitCropDetails(uid, { status, slug, scientificName: sci });
+    this.socketHndlr().emitCropDetails(uid, { status, slug, scientificName: sci });
+  }
+  private socketHndlr(): CropSuggestionSocketHandler {
+    return this.socket.cropSuggestion();
   }
 }

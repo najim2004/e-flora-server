@@ -9,5 +9,5 @@ export interface IDiseaseDetectionHistory extends CommonInMongoose {
   garden: Types.ObjectId;
   crop: Types.ObjectId;
   detectedDisease: Types.ObjectId;
-  cta:boolean;
+  cta: boolean;
 }

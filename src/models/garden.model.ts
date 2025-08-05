@@ -30,11 +30,19 @@ const gardenSchema = new Schema<IGarden>(
     pendingCrops: Number,
     removedCrops: Number,
     notes: String,
-    gardenType: { type: String, enum: ['rooftop', 'balcony', 'backyard', 'indoor', 'terrace', 'field'] },
+    gardenType: {
+      type: String,
+      enum: ['rooftop', 'balcony', 'backyard', 'indoor', 'terrace', 'field'],
+    },
     purpose: { type: String, enum: ['eat', 'sell', 'decor', 'educational', 'mixed'] },
     sunlight: { type: String, enum: ['full', 'partial', 'shade'] },
-    soilType: [{ type: String, enum: ['loamy', 'sandy', 'clayey', 'silty', 'peaty', 'chalky', 'unknown'] }],
-    waterSource: { type: String, enum: ['tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain'] },
+    soilType: [
+      { type: String, enum: ['loamy', 'sandy', 'clayey', 'silty', 'peaty', 'chalky', 'unknown'] },
+    ],
+    waterSource: {
+      type: String,
+      enum: ['tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain'],
+    },
     gardenerType: { type: String, enum: ['beginner', 'intermediate', 'expert'] },
   },
   {

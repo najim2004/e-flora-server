@@ -1,7 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import Logger from '../utils/logger';
 import { AuthenticatedSocket } from '../middlewares/socket.auth.middleware';
-import { CropSuggestionOutput, CropSuggestionProgressUpdate } from '../types/0cropSuggestion.types';
+import { CropSuggestionProgressUpdate } from '../types/cropSuggestion.types';
 
 export class CropSuggestionSocketHandler {
   private static readonly ROOM = (id: string): string => `user:${id}:crop-suggestion`;
@@ -49,7 +49,7 @@ export class CropSuggestionSocketHandler {
     if (message) this.log.debug(`Message: ${message}`);
   }
 
-  async emitCompleted(userId: string, data: CropSuggestionOutput): Promise<void> {
+  async emitCompleted(userId: string, data: { resultId: string }): Promise<void> {
     const room = CropSuggestionSocketHandler.ROOM(userId);
     this.io.to(room).emit('cropSuggestionCompleted', { data, timestamp: new Date() });
     this.log.info(`Completed sent to ${userId}`);

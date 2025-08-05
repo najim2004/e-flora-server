@@ -1,7 +1,7 @@
-import { CommonInMongoose } from "./common.interface";
+import { CommonInMongoose } from './common.interface';
 
-export interface IImage extends CommonInMongoose{
-    url:string;
-    imageId:string;
-    index:string;
+export interface IImage extends CommonInMongoose {
+  url: string;
+  imageId: string;
+  index: string;
 }

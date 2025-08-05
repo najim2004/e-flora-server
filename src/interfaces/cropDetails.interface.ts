@@ -145,7 +145,7 @@ export interface GrowthAndHarvest {
 }
 
 export interface ICropDetails extends CommonInMongoose {
-  cropId:Types.ObjectId;
+  cropId: Types.ObjectId;
   name: string;
   scientificName: string;
   type: string;

@@ -34,3 +34,9 @@ export interface CropName {
   name: string;
   scientificName: string;
 }
+export interface CropSuggestionProgressUpdate {
+  userId: string;
+  status: 'initiated' | 'analyzing' | 'generatingData' | 'savingToDB' | 'completed' | 'failed';
+  progress: number;
+  message?: string;
+}
