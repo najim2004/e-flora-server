@@ -1,4 +1,15 @@
-import { GoogleGenAI, createUserContent, createPartFromUri } from '@google/genai';
+import fs from 'fs/promises';
+import { GoogleGenAI } from '@google/genai';
+
+interface ImageFile {
+  path: string;
+  mimeType: string;
+}
+
+interface GenerateImageOptions {
+  imageFile?: ImageFile;
+  imageUrl?: string;
+}
 
 class GeminiUtils {
   private genAI: GoogleGenAI;
@@ -22,31 +33,27 @@ class GeminiUtils {
 
   public async generateResponseWithImage(
     prompt: string,
-    imageFile: { path: string; mimeType: string }
+    opt: GenerateImageOptions
   ): Promise<string | undefined> {
     try {
-      const uploadedFile = await this.genAI.files.upload({
-        file: imageFile.path,
-        config: { mimeType: imageFile.mimeType },
+      const buffer: Buffer = opt.imageFile
+        ? await fs.readFile(opt.imageFile.path)
+        : opt.imageUrl
+          ? Buffer.from(await (await fetch(opt.imageUrl)).arrayBuffer())
+          : ((): never => {
+              throw new Error('Provide either imageFile or imageUrl');
+            })();
+
+      const mimeType: string = opt.imageFile?.mimeType || 'image/jpeg';
+
+      const res = await this.genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ inlineData: { mimeType, data: buffer.toString('base64') } }, { text: prompt }],
       });
 
-      if (!uploadedFile.uri || !uploadedFile.mimeType) {
-        throw new Error('File upload failed: Missing URI or MIME type');
-      }
-
-      const response = await this.genAI.models.generateContent({
-        model: 'gemini-2.5-flash-preview-05-20',
-        contents: createUserContent([
-          createPartFromUri(uploadedFile.uri, uploadedFile.mimeType),
-          prompt,
-        ]),
-      });
-
-      return response.text;
-    } catch (error) {
-      throw new Error(
-        'Failed to generate response from Gemini AI with image:' + (error as Error).message
-      );
+      return res.text;
+    } catch (e) {
+      throw new Error('Gemini AI failed: ' + (e as Error).message);
     }
   }
 

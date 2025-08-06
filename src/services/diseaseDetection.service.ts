@@ -95,8 +95,7 @@ export class DiseaseDetectionService {
   ): Promise<{ diseaseName: string; embedded: number[] }> {
     const prompt = DiseaseDetectionPrompt.getDiseaseNameGettingPrompt(name, desc);
     const disease = await this.gemini.generateResponseWithImage(prompt, {
-      path: img.path,
-      mimeType: img.mimetype,
+      imageFile: { path: img.path, mimeType: img.mimetype },
     });
     if (!disease || ['ERROR_INVALID_IMAGE', 'NO_DISEASE_DETECTED'].includes(disease))
       throw new Error('Invalid image or no disease.');

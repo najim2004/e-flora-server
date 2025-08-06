@@ -17,6 +17,7 @@ export interface CropSuggestionInput {
   // for manual mode
   location: LocationWithAddress;
   image?: Express.Multer.File;
+  imageUrl?: string;
   area?: number;
   soilType?: SoilType;
   sunlight?: Sunlight;
