@@ -1,6 +1,7 @@
 import { CallbackError, model, models, Schema } from 'mongoose';
 import { IUser } from '../interfaces/user.interface';
 import bcrypt from 'bcryptjs';
+import { Garden } from './garden.model';
 
 // ENUM constants
 const LANGUAGE_ENUM = ['ENG', 'BN'] as const;
@@ -145,6 +146,35 @@ userSchema.pre('save', async function (next) {
     next();
   } catch (error) {
     next(error as CallbackError);
+  }
+});
+
+userSchema.post('save', async function (doc, next) {
+  try {
+    if (!doc.garden) {
+      const garden = await Garden.create({
+        userId: doc._id,
+        name: `${doc.name.split(' ')[0]}'s Garden`,
+        location: {
+          city: doc.location || '',
+        },
+        gardenerType: doc.accountSettings?.securitySettings?.twoFactorAuthentication
+          ? 'beginner'
+          : 'intermediate',
+        gardenType: 'rooftop',
+        purpose: 'mixed',
+        sunlight: 'full',
+        soilType: ['unknown'],
+        waterSource: 'uncertain',
+      });
+
+      doc.garden = garden._id;
+      await doc.save();
+    }
+
+    next();
+  } catch (err) {
+    next(err as CallbackError);
   }
 });
 
