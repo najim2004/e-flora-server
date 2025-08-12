@@ -1,10 +1,14 @@
-import { model, models, Schema } from 'mongoose';
+import { model, models, Schema, Types } from 'mongoose';
 import { ICrop } from '../interfaces/crop.interface';
 
 const CropSchema = new Schema<ICrop>({
   name: { type: String, required: true },
   scientificName: { type: String, required: true },
-  image: { type: Schema.Types.ObjectId, required: true },
+  image: {
+    type: Schema.Types.ObjectId,
+    ref: 'Image',
+    default: (): Types.ObjectId => new Types.ObjectId('68a20b129ffc8a285d720bc4'),
+  },
   difficulty: { type: String, enum: ['very easy', 'easy', 'medium', 'hard'], required: true },
   features: { type: [String] },
   description: { type: String },

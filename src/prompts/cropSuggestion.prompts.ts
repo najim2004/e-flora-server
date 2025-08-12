@@ -23,7 +23,7 @@ export class CropSuggestionPrompts {
     return `
         You are an expert agronomist AI assistant.
 
-        I need you to analyze a garden based on the following input and suggest **16 suitable plant names**. The garden image is attached separately — please analyze that image as part of your decision making.
+        I need you to analyze a garden based on the following input and suggest **16 suitable plant names**.
 
         Your response must be a **JSON array** of 16 objects containing:
 

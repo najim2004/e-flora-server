@@ -2,7 +2,6 @@ import { Types, startSession } from 'mongoose';
 import { CropDetails } from '../models/cropDetails.model';
 import { CropSuggestionHistory } from '../models/cropSuggestionHistory.model';
 import { Crop } from '../models/crop.model';
-import { Image } from '../models/image.model';
 import { CropSuggestionInput, CropName } from '../types/cropSuggestion.types';
 import { WeatherService, WeatherAverages } from '../utils/weather.utils';
 import Logger from '../utils/logger';
@@ -37,13 +36,16 @@ export class CropSuggestionService {
       const allCrops = [...found, ...newCrops];
       const history = await this.saveHistory(input, userId, allCrops, weather);
       this.emitDone(userId, history._id.toString());
-      if (newCrops.length)
+      if (newCrops.length) {
         this.generateDetails(
           newCrops.map(c => ({ ...c, _id: c._id })),
           userId
         );
+      }
     } catch (e) {
       this.log.error(`User ${userId}: ${(e as Error).message}`);
+      console.log('[GenerateCropSuggestion Func]:', e);
+      this.emitProgress(userId, 'failed', 0, 'Crop suggestion generation failed');
       this.socketHndlr().emitFailed(userId, 'Generation failed. Try again.');
     }
   }
@@ -54,11 +56,10 @@ export class CropSuggestionService {
       .populate({
         path: 'crops',
         select: '-__v -createdAt -updatedAt',
-        populate: {
-          path: 'image',
-        },
+        populate: { path: 'image' },
       });
   }
+
   public async getHistories(
     userId: string,
     page = 1,
@@ -81,6 +82,7 @@ export class CropSuggestionService {
       .select('-__v -createdAt -updatedAt')
       .catch(e => {
         this.log.error(`getCropDetails failed: ${(e as Error).message}`);
+        console.log('[GetCropDetails Func]:', e);
         return null;
       });
   }
@@ -91,6 +93,10 @@ export class CropSuggestionService {
   ): Promise<WeatherAverages> {
     this.emitProgress(uid, 'analyzing', 30, 'Fetching weather...');
     const weather = await new WeatherService(loc.latitude, loc.longitude).getWeatherAverages(16);
+    if (!weather) {
+      this.emitProgress(uid, 'failed', 0, 'Weather data not available');
+      throw new Error('Weather data not available');
+    }
     this.emitProgress(uid, 'analyzing', 40, 'Weather fetched.');
     return weather;
   }
@@ -99,14 +105,8 @@ export class CropSuggestionService {
     input: CropSuggestionInput,
     weather: WeatherAverages
   ): Promise<CropName[]> {
-    if (!input.image) return [];
     const prompt = this.prompt.getCropNamesPrompt({ ...input, weatherAverages: weather });
-    const image = input.imageUrl
-      ? { imageUrl: input.imageUrl }
-      : { imageFile: { path: input.image.path, mimeType: input.image.mimetype } };
-    const res = await this.gemini.generateResponseWithImage(prompt, {
-      ...image,
-    });
+    const res = await this.gemini.generateResponse(prompt);
     return this.parseGeminiJSON<CropName[]>(res, 'cropNames') ?? [];
   }
 
@@ -131,11 +131,9 @@ export class CropSuggestionService {
             'crop'
           );
           if (!res?.name || !res?.scientificName) throw new Error('Invalid crop');
-          const img = await Image.findOne({ index: res.scientificName }).session(session);
-          const [created] = await Crop.create(
-            [{ ...res, imageId: img?._id, details: { status: 'pending' } }],
-            { session }
-          );
+          const [created] = await Crop.create([{ ...res, details: { status: 'pending' } }], {
+            session,
+          });
           crops.push(created);
         } catch (e) {
           this.log.warn(`Skip crop "${scientificName}": ${(e as Error).message}`);
@@ -157,7 +155,9 @@ export class CropSuggestionService {
         const exists = await CropDetails.findOne({
           $or: [{ scientificName: crop.scientificName }, { name: crop.name }],
         }).select('slug scientificName');
-        if (exists) return this.emitCropDetail(uid, 'success', exists.scientificName, exists.slug);
+        if (exists) {
+          return this.emitCropDetail(uid, 'success', exists.scientificName, exists.slug);
+        }
 
         const raw = await this.gemini.generateResponse(
           this.prompt.getCropDetailsPrompt(crop.name, crop.scientificName)
@@ -174,7 +174,7 @@ export class CropSuggestionService {
   }
 
   private async saveHistory(
-    input: Omit<CropSuggestionInput, 'image' | 'mode'>,
+    input: Omit<CropSuggestionInput, 'mode'>,
     uid: string,
     crops: ICrop[],
     weather: WeatherAverages
@@ -236,6 +236,7 @@ export class CropSuggestionService {
   ): void {
     this.socketHndlr().emitCropDetails(uid, { status, slug, scientificName: sci });
   }
+
   private socketHndlr(): CropSuggestionSocketHandler {
     return this.socket.cropSuggestion();
   }

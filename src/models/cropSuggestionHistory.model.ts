@@ -10,7 +10,7 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
         country: { type: String, required: true },
         state: { type: String, required: true },
         city: { type: String, required: true },
-        zipCode: { type: String, required: true },
+        zipCode: { type: String },
         latitude: { type: Number, required: true },
         longitude: { type: Number, required: true },
       },
@@ -32,7 +32,7 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
         required: true,
       },
       plantType: {
-        type: String,
+        type: [String],
         enum: ['vegetable', 'fruit', 'flower', 'herb', 'tree', 'ornamental'],
         required: true,
       },
@@ -42,7 +42,6 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
         required: true,
       },
     },
-    crops: [{ type: Schema.Types.ObjectId, ref: 'Crop', required: true }],
     weather: {
       avgMaxTemp: { type: Number, required: true },
       avgMinTemp: { type: Number, required: true },
@@ -51,6 +50,7 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
       avgWindSpeed: { type: Number, required: true },
       dominantWindDirection: { type: String, required: true },
     },
+    crops: [{ type: Schema.Types.ObjectId, ref: 'Crop', required: true }],
   },
   {
     timestamps: true,

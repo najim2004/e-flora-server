@@ -30,7 +30,7 @@ export interface ICropSuggestionHistory extends CommonInMongoose {
     soilType: SoilType;
     area: number;
     waterSource: WaterSource;
-    plantType: PlantType;
+    plantType: PlantType[];
     gardenType: GardenType;
     gardenerType: GardenerType;
   };

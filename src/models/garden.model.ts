@@ -17,7 +17,7 @@ const gardenSchema = new Schema<IGarden>(
       },
       default: {},
     },
-    size: { type: Number, default: NaN },
+    size: { type: Number, default: 0 },
     weather: {
       type: {
         maxTemp: Number,
@@ -55,8 +55,8 @@ const gardenSchema = new Schema<IGarden>(
     },
     waterSource: {
       type: String,
-      enum: ['tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain'],
-      default: 'uncertain',
+      enum: ['tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain', 'unknown'],
+      default: 'unknown',
     },
     gardenerType: {
       type: String,

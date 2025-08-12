@@ -13,7 +13,14 @@ export interface Weather {
 
 export type SoilType = 'loamy' | 'sandy' | 'clayey' | 'silty' | 'peaty' | 'chalky' | 'unknown';
 export type Sunlight = 'full' | 'partial' | 'shade';
-export type WaterSource = 'tube-well' | 'tap' | 'rainwater' | 'storage' | 'manual' | 'uncertain';
+export type WaterSource =
+  | 'tube-well'
+  | 'tap'
+  | 'rainwater'
+  | 'storage'
+  | 'manual'
+  | 'uncertain'
+  | 'unknown';
 export type Purpose = 'eat' | 'sell' | 'decor' | 'educational' | 'mixed';
 export type GardenType = 'rooftop' | 'balcony' | 'backyard' | 'indoor' | 'terrace' | 'field';
 export type GardenerType = 'beginner' | 'intermediate' | 'expert';

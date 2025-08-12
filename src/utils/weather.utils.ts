@@ -42,12 +42,9 @@ export class WeatherService {
 
   async getWeatherAverages(days = 7): Promise<WeatherAverages> {
     if (days > 16) throw new BadRequestError('Forecast data is only available for up to 16 days');
-    const url =
-      `${this.BASE_URL}?latitude=${this.latitude}&longitude=${this.longitude}` +
-      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,` +
-      `wind_direction_10m_dominant,relative_humidity_2m_mean&timezone=auto`;
+    const url = `${this.BASE_URL}?latitude=${this.latitude}&longitude=${this.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant,relative_humidity_2m_mean&timezone=auto&forecast_days=${days}`;
 
-    const response = await axios.get(url);
+    const response = await axios.get(url, { family: 4 });
     const data: DailyWeatherData = response.data.daily;
 
     return {

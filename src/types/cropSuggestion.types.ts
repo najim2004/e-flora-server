@@ -10,14 +10,12 @@ import {
 import { LocationWithAddress } from './common.types';
 export interface CropSuggestionInput {
   //common fields
-  plantType: PlantType;
+  plantType: PlantType[];
   mode: 'manual' | 'auto';
   avoidCurrentCrops: boolean;
 
   // for manual mode
   location: LocationWithAddress;
-  image?: Express.Multer.File;
-  imageUrl?: string;
   area?: number;
   soilType?: SoilType;
   sunlight?: Sunlight;

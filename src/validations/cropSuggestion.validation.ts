@@ -2,8 +2,9 @@ import Joi from 'joi';
 
 export class CropSuggestionValidation {
   public static cropSuggestion = Joi.object({
-    plantType: Joi.string()
-      .valid('vegetable', 'fruit', 'flower', 'herb', 'tree', 'ornamental')
+    plantType: Joi.array()
+      .items(Joi.string().valid('vegetable', 'fruit', 'flower', 'herb', 'tree', 'ornamental'))
+      .min(1)
       .required()
       .messages({
         'any.only': 'Please provide a valid plant type',
@@ -18,6 +19,13 @@ export class CropSuggestionValidation {
       is: 'auto',
       then: Joi.string().required().messages({
         'any.required': 'Garden ID is required in auto mode',
+      }),
+      otherwise: Joi.forbidden(),
+    }),
+    avoidCurrentCrops: Joi.when('mode', {
+      is: 'auto',
+      then: Joi.boolean().required().messages({
+        'any.required': 'Avoid current crops flag is required in auto mode',
       }),
       otherwise: Joi.forbidden(),
     }),
@@ -78,7 +86,7 @@ export class CropSuggestionValidation {
     waterSource: Joi.when('mode', {
       is: 'manual',
       then: Joi.string()
-        .valid('tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain')
+        .valid('tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain', 'unknown')
         .required()
         .messages({
           'any.only': 'Please provide a valid water source',
@@ -112,11 +120,23 @@ export class CropSuggestionValidation {
       }),
       otherwise: Joi.forbidden(),
     }),
-
-    // image validation: since it's FormData, validate as presence only (optional)
-    image: Joi.any().when('mode', {
+    gardenType: Joi.when('mode', {
       is: 'manual',
-      then: Joi.optional(), // optional file in manual mode
+      then: Joi.string()
+        .valid('rooftop', 'balcony', 'backyard', 'indoor', 'terrace', 'field')
+        .required()
+        .messages({
+          'any.only': 'Please provide a valid garden type',
+          'any.required': 'Garden type is required',
+        }),
+      otherwise: Joi.forbidden(),
+    }),
+    gardenerType: Joi.when('mode', {
+      is: 'manual',
+      then: Joi.string().valid('beginner', 'intermediate', 'expert').required().messages({
+        'any.only': 'Please provide a valid gardener type',
+        'any.required': 'Gardener type is required',
+      }),
       otherwise: Joi.forbidden(),
     }),
   });
