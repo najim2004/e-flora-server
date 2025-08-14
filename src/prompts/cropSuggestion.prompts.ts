@@ -23,9 +23,9 @@ export class CropSuggestionPrompts {
     return `
         You are an expert agronomist AI assistant.
 
-        I need you to analyze a garden based on the following input and suggest **16 suitable plant names**.
+        I need you to analyze a garden based on the following input and suggest **6 suitable plant names**.
 
-        Your response must be a **JSON array** of 16 objects containing:
+        Your response must be a **JSON array** of 6 objects containing:
 
         - \`name\`: Common/local name
         - \`scientificName\`: Botanical name
@@ -88,16 +88,19 @@ export class CropSuggestionPrompts {
         `.trim();
   }
 
-  getCropEnrichmentPrompt(name: string, scientificName: string): string {
+  getCropEnrichmentPrompt(crops: { name: string; scientificName: string }[]): string {
+    const cropsList = crops
+      .map(c => `- name: ${c.name}\n  scientificName: ${c.scientificName}`)
+      .join('\n');
+
     return `
         You are a crop research assistant.
 
-        Based on trusted agronomic sources, generate complete data for the crop below:
+        Based on trusted agronomic sources, generate complete data for the following crops:
 
-        - name: ${name}
-        - scientificName: ${scientificName}
+        ${cropsList}
 
-        Return a JSON object with:
+        Return a JSON array where each element is an object with:
 
         - name
         - scientificName
@@ -107,7 +110,7 @@ export class CropSuggestionPrompts {
         - maturityTime: e.g. "60–80 days"
         - plantingSeason: e.g. "Spring", "Winter"
         - sunlight: e.g. "full sun", "partial shade"
-        - waterNeed: e.g. "low", "moderate", "high"
+        - waterNeed: "low" | "moderate" | "high"
         - soilType: "loamy" | "sandy" | "clayey" | "silty" | "peaty" | "chalky"
         - details:
         - status: "pending"
@@ -115,26 +118,28 @@ export class CropSuggestionPrompts {
         - slug: kebab-case of name
 
         📤 Output:
-        Only return a clean JSON object. No notes, no explanation.
+        Only return a clean JSON array. No notes, no explanation.
 
         \`\`\`json
+        [
         {
-        "name": "Tomato",
-        "scientificName": "Solanum lycopersicum",
-        "difficulty": "easy",
-        "features": ["high yield", "disease resistant"],
-        "description": "Tomato is a popular crop grown for its edible fruit. It is widely used in cooking and salads.",
-        "maturityTime": "60–80 days",
-        "plantingSeason": "Spring and Summer",
-        "sunlight": "full sun",
-        "waterNeed": "moderate",
-        "soilType": "loamy",
-        "details": {
+            "name": "Sample Crop",
+            "scientificName": "Sample scientificName",
+            "difficulty": "easy",
+            "features": ["feature1", "feature2"],
+            "description": "Short description here.",
+            "maturityTime": "60–80 days",
+            "plantingSeason": "Spring",
+            "sunlight": "full sun",
+            "waterNeed": "moderate",
+            "soilType": "loamy",
+            "details": {
             "status": "pending",
             "detailsId": null,
-            "slug": "tomato"
+            "slug": "sample-crop"
+            }
         }
-        }
+        ]
         \`\`\`
         `.trim();
   }
