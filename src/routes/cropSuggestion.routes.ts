@@ -45,11 +45,11 @@ export class CropSuggestionRouter {
       ValidationMiddleware.validateQuery(DiseaseDetectionValidation.historiesQuery),
       this.cropSuggestionController.getHistories.bind(this.cropSuggestionController)
     );
-    // this.router.get(
-    //   '/crop-details/:slug',
-    //   ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetailsParam),
-    //   this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
-    // );
+    this.router.get(
+      '/crop-details/:slug',
+      ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetails),
+      this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
+    );
   }
   public getRouter(): Router {
     return this.router;

@@ -140,4 +140,10 @@ export class CropSuggestionValidation {
       otherwise: Joi.forbidden(),
     }),
   });
+
+  public static cropDetails = Joi.object({
+    slug: Joi.string().required().messages({
+      'string.empty': `"slug" is required`,
+    }),
+  });
 }
