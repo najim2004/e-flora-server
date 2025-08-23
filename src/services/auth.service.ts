@@ -72,7 +72,7 @@ export class AuthService {
         payload,
         process.env.JWT_SECRET as Secret,
         {
-          expiresIn: process.env.JWT_EXPIRES_IN || '31536000',
+          expiresIn: process.env.JWT_EXPIRES_IN || 1000 * 60 * 60 * 24 * 365,
         } as SignOptions
       );
     } catch (error) {

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import Logger from '../utils/logger';
 import { BadRequestError } from '../utils/errors';
+import "dotenv"
 
 export class AuthController {
   private logger: Logger;
@@ -62,9 +63,9 @@ export class AuthController {
       // Set token in cookie
       res.cookie('token', token, {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 31536000,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 60 * 24 * 365,
       });
 
       // Log successful login
