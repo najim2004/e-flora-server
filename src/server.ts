@@ -14,7 +14,7 @@ class Server {
 
   constructor() {
     this.PORT = parseInt(process.env.PORT || '5000');
-    this.MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/digitalkrishi';
+    this.MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/e-flora';
     this.app = new App();
     this.httpServer = http.createServer(this.app.app);
     this.io = new SocketIOServer(this.httpServer, {
