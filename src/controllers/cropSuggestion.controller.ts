@@ -44,8 +44,6 @@ export class CropSuggestionController {
 
   public async getSingleResult(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.user?._id;
-      if (!userId) throw new UnauthorizedError('User not authenticated');
       const result = await this.cropSuggestionService.getOneHistory(req.params.id);
       if (!result) throw new NotFoundError('Not result found');
       res.status(200).json({
