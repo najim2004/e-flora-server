@@ -62,8 +62,8 @@ export class AuthController {
       // Set token in cookie
       res.cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        secure: process.env.NODE_ENV === "production",
         maxAge: 31536000,
       });
 
@@ -85,9 +85,9 @@ export class AuthController {
     try {
       // Clear the authentication cookie
       res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+       httpOnly: true,
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        secure: process.env.NODE_ENV === "production",
       });
       this.logger.info(`User logged out successfully`);
 
