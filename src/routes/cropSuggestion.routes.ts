@@ -35,7 +35,6 @@ export class CropSuggestionRouter {
     );
     this.router.get(
       '/crop-suggestion/result/:id',
-      authMiddleware,
       ValidationMiddleware.validateParams(DiseaseDetectionValidation.resultParam),
       this.cropSuggestionController.getSingleResult.bind(this.cropSuggestionController)
     );
