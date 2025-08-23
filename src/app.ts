@@ -32,7 +32,11 @@ export class App {
     this.app.use(helmet());
     this.app.use(
       cors({
-        origin: [process.env.CLIENT_URL || 'http://localhost:3000', '*'], // Your frontend URL
+        origin: [
+          process.env.CLIENT_URL || 'https://e-flora-fawn.vercel.app',
+          'http://localhost:3000',
+          '*',
+        ], // Your frontend URL
         credentials: true,
       })
     );

@@ -19,7 +19,7 @@ class Server {
     this.httpServer = http.createServer(this.app.app);
     this.io = new SocketIOServer(this.httpServer, {
       cors: {
-        origin: [process.env.CLIENT_URL||"http://localhost:3000","*"], // Allow all origins for now, adjust as needed
+        origin: [process.env.CLIENT_URL||"https://e-flora-fawn.vercel.app","http://localhost:3000","*"], // Allow all origins for now, adjust as needed
         methods: ['GET', 'POST'],
         credentials: true,
       },
