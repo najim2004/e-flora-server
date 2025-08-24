@@ -14,6 +14,7 @@ import { ICropDetails } from '../interfaces/cropDetails.interface';
 import { ICrop } from '../interfaces/crop.interface';
 import { Image } from '../models/image.model';
 import { PexelsUtils } from '../utils/pexels.utils';
+import { IImage } from '../interfaces/image.interface';
 
 export class CropSuggestionService {
   private log: Logger;
@@ -35,6 +36,7 @@ export class CropSuggestionService {
 
       const newCrops = notFound.length ? await this.saveNewCropsBatch(notFound, userId) : [];
       const allCrops = [...found, ...newCrops];
+      if (!allCrops) throw new Error('failed to generate and save new crops or plants');
 
       const history = await this.saveHistory(input, userId, allCrops, weather);
       this.emitDone(userId, history._id.toString());
@@ -147,19 +149,19 @@ export class CropSuggestionService {
 
         for (const data of res) {
           if (!data?.name || !data?.scientificName) continue;
-          const image = await Image.findOne({
+          const image = (await Image.findOne({
             $or: [{ index: data.scientificName }, { index: data.name }, { index: 'default_image' }],
-          }).select('_id');
+          }).select('_id')) as IImage;
           let newImage: { _id: Types.ObjectId } | null = null;
-          if (image.index == 'default_image') {
+          if (!image || image?.index == 'default_image') {
             try {
-              const pexelsRes = await new PexelsUtils().fetchImageByName(data.name, data.name);
+              const pexelsRes = await new PexelsUtils().fetchImageByName(data.name);
               if (pexelsRes) {
                 const saved = await Image.create({
-                  url: pexelsRes.url,
-                  index: pexelsRes.index,
+                  url: pexelsRes?.url,
+                  index: pexelsRes?.index,
                 });
-                if (saved) newImage = { _id: saved._id };
+                if (saved) newImage = { _id: saved?._id };
               }
             } catch (error) {
               console.log('[saveNewCropsBatch line 165]: ', error);
@@ -169,7 +171,7 @@ export class CropSuggestionService {
             [
               {
                 ...data,
-                image: newImage?._id ? newImage._id : image._id,
+                image: newImage?._id ? newImage._id : image?._id,
                 details: { status: 'pending' },
               },
             ],
