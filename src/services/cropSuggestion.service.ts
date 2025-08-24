@@ -13,6 +13,7 @@ import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.inte
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 import { ICrop } from '../interfaces/crop.interface';
 import { Image } from '../models/image.model';
+import { PexelsUtils } from '../utils/pexels.utils';
 
 export class CropSuggestionService {
   private log: Logger;
