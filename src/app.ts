@@ -11,6 +11,7 @@ import Logger from './utils/logger';
 import cookieParser from 'cookie-parser';
 import { cropSuggestionRouter } from './routes/cropSuggestion.routes';
 import { diseaseDetectionRouter } from './routes/diseaseDetection.routes';
+import { gardenRouter } from './routes/garden.routes';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ export class App {
     this.app.use('/api/v1/users', userRouter);
     this.app.use('/api/v1/crops', cropSuggestionRouter);
     this.app.use('/api/v1/crops', diseaseDetectionRouter);
+    this.app.use('/api/v1/garden', gardenRouter);
 
     // Handle 404
     this.app.use(/(.*)/, (req: Request, res: Response) => {

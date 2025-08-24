@@ -53,7 +53,7 @@ export class GardenService {
     this.log.info('Background add started', { cropId: crop._id, userId: userId.toString() });
 
     try {
-      const guideId = await this.generateGuide(crop);
+      const guideId = await this.generateGuide(crop, gId);
       await GardenCrop.create({
         userId,
         garden: gId,
@@ -85,7 +85,7 @@ export class GardenService {
    */
   private async findCrop(cropId: string): Promise<CropPreview | null> {
     return Crop.findById(cropId)
-      .select('name scientificName image description')
+      .select('_id name scientificName image description')
       .lean() as Promise<CropPreview | null>;
   }
 
@@ -93,7 +93,8 @@ export class GardenService {
    * Generate planting guide using Gemini
    */
   private async generateGuide(
-    crop: Pick<ICrop, 'name' | 'scientificName' | 'description'>
+    crop: CropPreview,
+    gardenId: Types.ObjectId
   ): Promise<Types.ObjectId> {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -106,7 +107,7 @@ export class GardenService {
         const parsed = this.parseJSON<IPlantingGuide>(raw, 'planting guide');
 
         if (parsed) {
-          const res = await PlantingGuideModel.create(parsed);
+          const res = await PlantingGuideModel.create({ ...parsed, gardenId, cropId: crop._id });
           return res._id;
         }
       } catch (e) {
