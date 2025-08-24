@@ -21,11 +21,14 @@ const CropSchema = new Schema<ICrop>({
     enum: ['loamy', 'sandy', 'clayey', 'silty', 'peaty', 'chalky'],
     required: true,
   },
-  details: {
-    status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
-    detailsId: { type: Schema.Types.ObjectId, ref: 'CropDetails' },
-    slug: String,
-  },
+  details: new Schema(
+    {
+      status: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
+      detailsId: { type: Schema.Types.ObjectId, ref: 'CropDetails' },
+      slug: String,
+    },
+    { _id: true }
+  ),
 });
 
 export const Crop = models.Crop || model<ICrop>('Crop', CropSchema);

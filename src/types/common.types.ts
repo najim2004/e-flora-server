@@ -10,8 +10,8 @@ export interface Location {
 }
 
 export interface LocationWithAddress extends Location {
-  country: string;
-  state: string;
-  city: string;
+  country?: string;
+  state?: string;
+  city?: string;
   zipCode?: string;
 }

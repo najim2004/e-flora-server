@@ -42,17 +42,14 @@ export class CropSuggestionValidation {
           'any.required': 'Longitude is required',
           'number.base': 'Longitude must be a number',
         }),
-        country: Joi.string().min(2).required().messages({
+        country: Joi.string().optional().messages({
           'string.min': 'Country name is too short',
-          'any.required': 'Country is required',
         }),
-        state: Joi.string().min(2).required().messages({
+        state: Joi.string().optional().messages({
           'string.min': 'State name is too short',
-          'any.required': 'State is required',
         }),
-        city: Joi.string().min(2).required().messages({
+        city: Joi.string().optional().messages({
           'string.min': 'City name is too short',
-          'any.required': 'City is required',
         }),
       })
         .required()

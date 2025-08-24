@@ -37,7 +37,14 @@ export class CropSuggestionPrompts {
         - Plant type: ${plantType}
         - Gardener type: ${gardenerType}
         - Garden type: ${gardenType}
-        - Location: ${location}
+        ${
+          location?.country &&
+          `- Location: {
+            ${location?.city && `- City: ${location.city}`}
+            ${location?.state && `- State: ${location.state}`}
+            ${location?.country && `- Country: ${location.country}`}
+        }`
+        }
         ${area ? `- Area: ${area} sq.ft` : ''}
         ${soilType ? `- Soil type: ${soilType}` : ''}
         ${sunlight ? `- Sunlight: ${sunlight}` : ''}

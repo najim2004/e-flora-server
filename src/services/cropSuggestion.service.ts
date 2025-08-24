@@ -13,8 +13,6 @@ import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.inte
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 import { ICrop } from '../interfaces/crop.interface';
 
-type MinimalCrop = CropName & { _id: Types.ObjectId };
-
 export class CropSuggestionService {
   private log: Logger;
   private gemini = new GeminiUtils();
@@ -27,7 +25,7 @@ export class CropSuggestionService {
   }
 
   public async generateCropSuggestion(input: CropSuggestionInput, userId: string): Promise<void> {
-    this.emitProgress(userId, 'initiated', 10, 'Starting...');
+    this.emitProgress(userId, 'initiated', 10, 'Initializing crop suggestion process');
     try {
       const weather = await this.fetchWeather(input.location, userId);
       const cropNames = await this.generateCropNames(input, weather);
@@ -40,12 +38,12 @@ export class CropSuggestionService {
       this.emitDone(userId, history._id.toString());
 
       if (newCrops.length) {
-        this.generateDetails(newCrops, userId);
+        await this.generateDetails(newCrops, userId);
       }
     } catch (e) {
       this.log.error(`User ${userId}: ${(e as Error).message}`);
-      this.emitProgress(userId, 'failed', 0, 'Crop suggestion generation failed');
-      this.socketHndlr().emitFailed(userId, 'Generation failed. Try again.');
+      this.emitProgress(userId, 'failed', 0, 'Failed to generate crop suggestions');
+      this.socketHndlr().emitFailed(userId, 'Generation failed. Please try again.');
     }
   }
 
@@ -87,13 +85,13 @@ export class CropSuggestionService {
     loc: CropSuggestionInput['location'],
     uid: string
   ): Promise<WeatherAverages> {
-    this.emitProgress(uid, 'analyzing', 30, 'Fetching weather...');
+    this.emitProgress(uid, 'analyzing', 25, 'Analyzing weather conditions');
     const weather = await new WeatherService(loc.latitude, loc.longitude).getWeatherAverages(16);
     if (!weather) {
-      this.emitProgress(uid, 'failed', 0, 'Weather data not available');
+      this.emitProgress(uid, 'failed', 0, 'Weather data unavailable');
       throw new Error('Weather data not available');
     }
-    this.emitProgress(uid, 'analyzing', 40, 'Weather fetched.');
+    this.emitProgress(uid, 'analyzing', 40, 'Weather analysis completed');
     return weather;
   }
 
@@ -123,16 +121,17 @@ export class CropSuggestionService {
     try {
       const batches = [];
       for (let i = 0; i < cropNames.length; i += 6) {
-        batches.push(cropNames.slice(i, i + 6)); // batch max 6
+        batches.push(cropNames.slice(i, i + 6));
       }
 
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
+        const progress = Math.min(40 + ((i + 1) / batches.length) * 50, 90);
         this.emitProgress(
           uid,
           'generatingData',
-          60 + i * 10,
-          `Generating crops batch ${i + 1}/${batches.length}...`
+          progress,
+          `Processing crop data (${i + 1}/${batches.length})`
         );
 
         let res: (Omit<ICrop, '_id'> | null)[] = [];
@@ -156,11 +155,11 @@ export class CropSuggestionService {
       }
 
       await session.commitTransaction();
-      this.emitProgress(uid, 'savingToDB', 85, 'All new crops saved to DB.');
+      this.emitProgress(uid, 'savingToDB', 95, 'Finalizing crop suggestions');
     } catch (e) {
       await session.abortTransaction();
       this.log.error(`Transaction failed: ${(e as Error).message}`);
-      this.emitProgress(uid, 'failed', 0, 'Failed to save new crops');
+      this.emitProgress(uid, 'failed', 0, 'Failed to process crop data');
     } finally {
       session.endSession();
     }
@@ -169,7 +168,7 @@ export class CropSuggestionService {
   }
 
   // --- Crop Details ---
-  private async generateDetails(crops: MinimalCrop[], uid: string): Promise<void> {
+  private async generateDetails(crops: ICrop[], uid: string): Promise<void> {
     for (const crop of crops) {
       try {
         const exists = await CropDetails.findOne({
@@ -177,7 +176,14 @@ export class CropSuggestionService {
         }).select('slug scientificName');
 
         if (exists) {
-          this.emitCropDetail(uid, 'success', exists.scientificName, exists.slug);
+          await Crop.findByIdAndUpdate(crop._id, {
+            details: {
+              status: 'success',
+              slug: exists.slug,
+              detailsId: exists._id,
+            },
+          });
+          this.emitCropDetail(uid, 'success', crop.details._id, exists.slug);
         } else {
           const raw = await this.gemini.generateResponse(
             this.prompt.getCropDetailsPrompt(crop.name, crop.scientificName)
@@ -186,13 +192,19 @@ export class CropSuggestionService {
           if (!res?.name) throw new Error('Invalid crop detail');
 
           const saved = await CropDetails.create({ ...res, cropId: crop._id });
-          await Crop.findByIdAndUpdate(crop._id, { 'details.status': 'success' });
-          this.emitCropDetail(uid, 'success', saved.scientificName, saved.slug);
+          await Crop.findByIdAndUpdate(crop._id, {
+            details: {
+              status: 'success',
+              slug: saved.slug,
+              detailsId: saved._id,
+            },
+          });
+          this.emitCropDetail(uid, 'success', crop.details._id, saved.slug);
         }
       } catch (e) {
         await Crop.findByIdAndUpdate(crop._id, { 'details.status': 'failed' });
         this.log.warn(`Failed detail "${crop.scientificName}": ${(e as Error).message}`);
-        this.emitCropDetail(uid, 'failed', crop.scientificName);
+        this.emitCropDetail(uid, 'failed', crop.details._id);
       }
 
       // wait 1.5–2 seconds before next detail
@@ -252,10 +264,10 @@ export class CropSuggestionService {
   private emitCropDetail(
     uid: string,
     status: 'success' | 'failed',
-    sci: string,
+    detId: string | Types.ObjectId,
     slug?: string
   ): void {
-    this.socketHndlr().emitCropDetails(uid, { status, slug, scientificName: sci });
+    this.socketHndlr().emitCropDetails(uid, { status, slug, detailsId: detId.toString() });
   }
 
   private socketHndlr(): CropSuggestionSocketHandler {

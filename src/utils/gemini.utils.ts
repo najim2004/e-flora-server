@@ -27,6 +27,7 @@ class GeminiUtils {
       });
       return response.text;
     } catch (error) {
+      console.log('[From Gemini utils line 30]: ' + error);
       throw new Error('Failed to generate response from Gemini AI:' + (error as Error).message);
     }
   }
@@ -53,6 +54,7 @@ class GeminiUtils {
 
       return res.text;
     } catch (e) {
+      console.log('[From Gemini utils line 57]: ' + e);
       throw new Error('Gemini AI failed: ' + (e as Error).message);
     }
   }
@@ -70,6 +72,7 @@ class GeminiUtils {
 
       return response.embeddings[0].values;
     } catch (error) {
+      console.log('[From Gemini utils line 75]: ' + error);
       throw new Error('Failed to generate embedding from Gemini AI: ' + (error as Error).message);
     }
   }

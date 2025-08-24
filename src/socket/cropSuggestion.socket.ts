@@ -66,7 +66,7 @@ export class CropSuggestionSocketHandler {
     data: {
       status: 'success' | 'failed';
       slug?: string;
-      scientificName: string;
+      detailsId: string;
     }
   ): Promise<void> {
     const room = CropSuggestionSocketHandler.ROOM(userId);
@@ -74,6 +74,6 @@ export class CropSuggestionSocketHandler {
       ...data,
       timestamp: new Date(),
     });
-    this.log.debug(`Details update for ${data.scientificName} sent to ${userId}`);
+    this.log.debug(`Details update for ${data.detailsId} sent to ${userId}`);
   }
 }
