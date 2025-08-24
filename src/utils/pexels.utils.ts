@@ -5,14 +5,14 @@ export class PexelsUtils {
     try {
       const endpoint = `https://api.pexels.com/v1/search?query=${name}&per_page=1`;
       const response = await axios.get(endpoint, {
-        headers: { Authorization: process.env.PIXELS_API_KEY },
+        headers: { Authorization: process.env.PEXELS_API_KEY },
       });
 
       const data = response.data as {
         photos: { src: { original: string; medium: string; small: string } }[];
       };
       if (data?.photos) {
-        const url = data?.photos[0]?.src.original;
+        const url = data?.photos[0]?.src.medium;
         if (url) {
           return { url, index: name };
         }
