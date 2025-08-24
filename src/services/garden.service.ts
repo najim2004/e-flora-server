@@ -65,6 +65,7 @@ export class GardenService {
       this.emitGardenStatus(userId.toString(), {
         success: true,
         message: `${crop.name} successfully added.`,
+        cropId: crop._id.toString(),
       });
       this.log.info('Background add success', {
         cropId: crop._id,
@@ -75,6 +76,7 @@ export class GardenService {
       this.emitGardenStatus(userId.toString(), {
         success: false,
         message: `${crop.name} failed to add.`,
+        cropId: crop._id.toString(),
       });
       this.log.logError(error as Error, 'handleBackgroundAdd');
     }
@@ -141,7 +143,10 @@ export class GardenService {
   /**
    * Emit garden status event to user
    */
-  private emitGardenStatus(userId: string, data: { success: boolean; message: string }): void {
+  private emitGardenStatus(
+    userId: string,
+    data: { success: boolean; message: string; cropId: string }
+  ): void {
     this.socket.cropSuggestion().emitGardenAddingStatus(userId, data);
   }
 }

@@ -156,6 +156,8 @@ export class CropSuggestionService {
           if (!image || image?.index == 'default_image') {
             try {
               const pexelsRes = await new PexelsUtils().fetchImageByName(data.name);
+              console.log('[PEXELS RESPONSE]', pexelsRes);
+
               if (pexelsRes) {
                 const saved = await Image.create({
                   url: pexelsRes?.url,

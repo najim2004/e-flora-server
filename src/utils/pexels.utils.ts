@@ -12,14 +12,17 @@ export class PexelsUtils {
         photos: { src: { original: string; medium: string; small: string } }[];
       };
       if (data?.photos) {
-        const url = data?.photos[0]?.src.medium;
+        const url =
+          data?.photos[0]?.src?.medium ||
+          data?.photos[0]?.src.small ||
+          data.photos[0]?.src.original;
         if (url) {
           return { url, index: name };
         }
       }
       throw new Error('Failed to fetch image');
     } catch (error) {
-      console.log('[Pixels Utils line 23]: ', error);
+      console.log('[Pexels Utils line 25]: ', error);
       return null;
     }
   }
