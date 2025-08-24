@@ -8,14 +8,11 @@ export interface IGardenCrop extends CommonInMongoose {
   description: string;
   scientificName: string;
   status: 'pending' | 'active' | 'removed';
-  currentStage: 'sowing' | 'germination' | 'flowering' | 'maturing' | 'harvested';
+  currentStage: 'sowing' | 'germination' | 'flowering' | 'maturing' | 'harvested' | 'unknown';
   plantingDate: Date;
   expectedHarvestDate: Date;
   healthScore: number;
-  image: {
-    url: string;
-    id: string;
-  };
+  image: Types.ObjectId;
   tasks: Types.ObjectId[];
-  plantingGuideId: Types.ObjectId;
+  plantingGuide: Types.ObjectId;
 }

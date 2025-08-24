@@ -8,7 +8,7 @@ export interface PlantingGuideItem {
   note: string;
 }
 
-export interface PlantingGuide extends CommonInMongoose {
+export interface IPlantingGuide extends CommonInMongoose {
   cropId: Types.ObjectId;
   gardenId: Types.ObjectId;
   plantingSteps: PlantingGuideItem[];

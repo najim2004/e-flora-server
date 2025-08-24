@@ -76,4 +76,17 @@ export class CropSuggestionSocketHandler {
     });
     this.log.debug(`Details update for ${data.detailsId} sent to ${userId}`);
   }
+
+
+  async emitGardenAddingStatus(userId:string,data:{
+    success:boolean,
+    message:string
+  }):Promise<void>{
+    const room= CropSuggestionSocketHandler.ROOM(userId);
+    this.io.to(room).emit('gardenAddingStatus', {
+      ...data,
+      timestamp: new Date(),
+    });
+  }
+
 }

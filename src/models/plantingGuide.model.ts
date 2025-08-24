@@ -1,7 +1,7 @@
 import { model, Schema } from 'mongoose';
-import { PlantingGuide } from '../interfaces/plantingGuide.interface';
+import { IPlantingGuide } from '../interfaces/plantingGuide.interface';
 
-const plantingGuideSchema = new Schema<PlantingGuide>({
+const plantingGuideSchema = new Schema<IPlantingGuide>({
   cropId: { type: Schema.Types.ObjectId, ref: 'CropDetails', required: true },
   gardenId: { type: Schema.Types.ObjectId, ref: 'Garden', required: true },
   plantingSteps: [
@@ -12,9 +12,17 @@ const plantingGuideSchema = new Schema<PlantingGuide>({
       note: { type: String },
     },
   ],
-  numberOfSteps: { type: Number, required: true },
+  numberOfSteps: { type: Number },
   currentStep: { type: Number, default: 0 },
   status: { type: String, enum: ['inProgress', 'completed'], default: 'inProgress' },
 });
 
-export const PlantingGuideModel = model<PlantingGuide>('PlantingGuide', plantingGuideSchema);
+// Add pre-save middleware to automatically set numberOfSteps
+plantingGuideSchema.pre('save', function (next) {
+  if (this.plantingSteps) {
+    this.numberOfSteps = this.plantingSteps.length;
+  }
+  next();
+});
+
+export const PlantingGuideModel = model<IPlantingGuide>('PlantingGuide', plantingGuideSchema);

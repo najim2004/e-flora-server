@@ -95,7 +95,7 @@ export class CropSuggestionPrompts {
         `.trim();
   }
 
-  getCropEnrichmentPrompt(crops: { name: string; scientificName: string }[]): string {
+  public getCropEnrichmentPrompt(crops: { name: string; scientificName: string }[]): string {
     const cropsList = crops
       .map(c => `- name: ${c.name}\n  scientificName: ${c.scientificName}`)
       .join('\n');
@@ -151,7 +151,7 @@ export class CropSuggestionPrompts {
         `.trim();
   }
 
-  getCropDetailsPrompt(name: string, scientificName: string): string {
+  public getCropDetailsPrompt(name: string, scientificName: string): string {
     return `
         You are a knowledgeable agriculture expert. Based only on the given crop name and its scientific name, generate complete crop information in the following JSON format. Use real-world, research-backed facts by checking online sources. For all currency values, always use Bangladeshi Taka (BDT). Keep explanations short but specific to reduce token usage. Omit any field if there's no reliable data.
 

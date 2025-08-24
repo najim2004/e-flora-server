@@ -1,4 +1,4 @@
-import { model, models, Schema } from 'mongoose';
+import { model, models, Schema, Types } from 'mongoose';
 import { IGardenCrop } from '../interfaces/gardenCrop.interface';
 
 const gardenCropSchema = new Schema<IGardenCrop>(
@@ -6,24 +6,26 @@ const gardenCropSchema = new Schema<IGardenCrop>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     garden: { type: Schema.Types.ObjectId, ref: 'Garden', required: true },
     cropName: { type: String, required: true },
-    scientificName: String,
-    description: { type: String },
+    scientificName: { type: String, required: true },
+    description: { type: String, default: '' },
     status: {
       type: String,
       default: 'pending',
     },
     currentStage: {
       type: String,
+      default: 'unknown',
     },
     plantingDate: Date,
     expectedHarvestDate: Date,
-    healthScore: Number,
+    healthScore: { type: Number, default: 0 },
     image: {
-      url: String,
-      id: String,
+      type: Schema.Types.ObjectId,
+      ref: 'Image',
+      default: (): Types.ObjectId => new Types.ObjectId('68a20b129ffc8a285d720bc4'),
     },
     tasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],
-    plantingGuideId: { type: Schema.Types.ObjectId, ref: 'PlantingGuide' },
+    plantingGuide: { type: Schema.Types.ObjectId, ref: 'PlantingGuide' },
   },
   {
     timestamps: true,
