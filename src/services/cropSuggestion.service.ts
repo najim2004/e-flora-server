@@ -12,6 +12,7 @@ import { CropSuggestionSocketHandler } from '../socket/cropSuggestion.socket';
 import { ICropSuggestionHistory } from '../interfaces/cropSuggestionHistory.interface';
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 import { ICrop } from '../interfaces/crop.interface';
+import { Image } from '../models/image.model';
 
 export class CropSuggestionService {
   private log: Logger;
@@ -145,9 +146,15 @@ export class CropSuggestionService {
 
         for (const data of res) {
           if (!data?.name || !data?.scientificName) continue;
-          const [created] = await Crop.create([{ ...data, details: { status: 'pending' } }], {
-            session,
-          });
+          const image = await Image.findOne({
+            $or: [{ index: data.scientificName }, { index: data.name }, { index: 'default_image' }],
+          }).select('_id');
+          const [created] = await Crop.create(
+            [{ ...data, image: image._id, details: { status: 'pending' } }],
+            {
+              session,
+            }
+          );
           crops.push(created);
         }
 
