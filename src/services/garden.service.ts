@@ -57,6 +57,8 @@ export class GardenService {
       await GardenCrop.create({
         userId,
         garden: gId,
+        cropName: crop.name,
+        scientificName: crop.scientificName,
         plantingGuide: guideId,
         image: crop.image,
         description: crop.description,
