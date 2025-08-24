@@ -149,8 +149,29 @@ export class CropSuggestionService {
           const image = await Image.findOne({
             $or: [{ index: data.scientificName }, { index: data.name }, { index: 'default_image' }],
           }).select('_id');
+          let newImage: { _id: Types.ObjectId } | null = null;
+          if (image.index == 'default_image') {
+            try {
+              const pexelsRes = await new PexelsUtils().fetchImageByName(data.name, data.name);
+              if (pexelsRes) {
+                const saved = await Image.create({
+                  url: pexelsRes.url,
+                  index: pexelsRes.index,
+                });
+                if (saved) newImage = { _id: saved._id };
+              }
+            } catch (error) {
+              console.log('[saveNewCropsBatch line 165]: ', error);
+            }
+          }
           const [created] = await Crop.create(
-            [{ ...data, image: image._id, details: { status: 'pending' } }],
+            [
+              {
+                ...data,
+                image: newImage?._id ? newImage._id : image._id,
+                details: { status: 'pending' },
+              },
+            ],
             {
               session,
             }

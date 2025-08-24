@@ -3,7 +3,7 @@ import { IImage } from '../interfaces/image.interface';
 
 const imageSchema = new Schema<IImage>({
   url: { type: String, required: true },
-  imageId: { type: String, required: true },
+  imageId: { type: String },
   index: String,
 });
 
