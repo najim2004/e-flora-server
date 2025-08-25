@@ -243,7 +243,7 @@ export class CropSuggestionService {
         this.emitCropDetail(uid, 'failed', crop.details._id);
       }
 
-      // wait 1.5–2 seconds before next detail
+      // wait 1.5–2 seconds before next detail 
       await new Promise(r => setTimeout(r, 1500 + Math.floor(Math.random() * 500)));
     }
   }
