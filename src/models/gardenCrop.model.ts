@@ -1,5 +1,6 @@
 import { model, models, Schema, Types } from 'mongoose';
 import { IGardenCrop } from '../interfaces/gardenCrop.interface';
+import { Garden } from './garden.model';
 
 const gardenCropSchema = new Schema<IGardenCrop>(
   {
@@ -35,7 +36,6 @@ const gardenCropSchema = new Schema<IGardenCrop>(
 // Update garden.crops[] only if crop is newly added (avoid infinite loop)
 gardenCropSchema.post('save', async function (doc, next) {
   try {
-    const { Garden } = await import('./garden.model');
     const garden = await Garden.findById(doc.garden);
     if (garden && !garden.crops.includes(doc._id)) {
       garden.crops.push(doc._id);

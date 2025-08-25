@@ -18,14 +18,14 @@ export class UserRouter {
     // Refresh user route (requires authentication)
     this.router.get(
       '/me',
-      authMiddleware,
+      authMiddleware(),
       this.userController.refreshUser.bind(this.userController)
     );
 
     // Update user route (requires authentication and validation)
     this.router.put(
       '/update',
-      authMiddleware,
+      authMiddleware(),
       ValidationMiddleware.validateBody(UpdateUserValidation.update),
       this.userController.updateUser.bind(this.userController)
     );
@@ -33,7 +33,7 @@ export class UserRouter {
     // Profile route (requires authentication)
     this.router.get(
       '/profile',
-      authMiddleware,
+      authMiddleware(),
       this.userController.getUserProfile.bind(this.userController)
     );
   }

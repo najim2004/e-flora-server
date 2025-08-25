@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import Logger from '../utils/logger';
 import { BadRequestError } from '../utils/errors';
-import "dotenv"
+import 'dotenv';
 
 export class AuthController {
   private logger: Logger;
@@ -58,14 +58,24 @@ export class AuthController {
       this.logger.info(`Login attempt for email: ${email}`);
 
       // Login user
-      const { token, user } = await this.authService.login(req.body);
+      const { accessToken, refreshToken, user } = await this.authService.login(req.body);
 
-      // Set token in cookie
-      res.cookie('token', token, {
+      // Set tokens in cookie
+      res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24 * 365,
+        maxAge: Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
+          ? Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
+          : 1000 * 60 * 60 * 24 * 365,
+      });
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        secure: false,
+        maxAge: Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
+          ? Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
+          : 1000 * 60 * 60 * 24 * 365,
       });
 
       // Log successful login
@@ -85,10 +95,15 @@ export class AuthController {
   public async logout(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Clear the authentication cookie
-      res.clearCookie('token', {
-       httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        secure: process.env.NODE_ENV === "production",
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        secure: process.env.NODE_ENV === 'production',
+      });
+      res.clearCookie('accessToken', {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        secure: false,
       });
       this.logger.info(`User logged out successfully`);
 

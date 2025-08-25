@@ -9,6 +9,10 @@ import Logger from '../utils/logger';
 import { GardenCrop } from '../models/gardenCrop.model';
 import { GardenPrompts } from '../prompts/garden.prompts';
 import { BadRequestError } from '../utils/errors';
+import { IGarden } from '../interfaces/garden.interface';
+import { Garden } from '../models/garden.model';
+import { IGardenCrop } from '../interfaces/gardenCrop.interface';
+import { IImage } from '../interfaces/image.interface';
 
 type CropPreview = Pick<ICrop, '_id' | 'name' | 'scientificName' | 'description' | 'image'>;
 
@@ -150,5 +154,85 @@ export class GardenService {
     data: { success: boolean; message: string; cropId: string }
   ): void {
     this.socket.cropSuggestion().emitGardenAddingStatus(userId, data);
+  }
+
+  public async getMyGarden({ uId, gardenId }: { uId: string; gardenId: string }): Promise<
+    | (Omit<IGarden, 'crops' | 'tasks' | 'createdAt' | 'updatedAt'> & {
+        crops: Pick<
+          IGardenCrop,
+          '_id' | 'cropName' | 'scientificName' | 'healthScore' | 'status'
+        > & { image: Pick<IImage, '_id' | 'url' | 'index'>; nextTask: string };
+      })
+    | null
+  > {
+    const [userId, gId] = [uId, gardenId].map(id => new Types.ObjectId(id));
+
+    const garden = await Garden.aggregate([
+      { $match: { _id: gId, userId } },
+      {
+        $lookup: {
+          from: 'gardencrops',
+          localField: 'crops',
+          foreignField: '_id',
+          as: 'crops',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                cropName: 1,
+                scientificName: 1,
+                healthScore: 1,
+                status: 1,
+                currentStage: 1,
+                image: 1,
+              },
+            },
+            {
+              $lookup: {
+                from: 'images',
+                localField: 'image',
+                foreignField: '_id',
+                as: 'image',
+                pipeline: [{ $project: { _id: 1, url: 1, index: 1 } }],
+              },
+            },
+            {
+              $addFields: {
+                image: { $arrayElemAt: ['$image', 0] },
+              },
+            },
+            {
+              $lookup: {
+                from: 'tasks',
+                let: { cropId: '$_id' },
+                pipeline: [
+                  { $match: { $expr: { $eq: ['$cropId', '$$cropId'] } } },
+                  { $match: { status: 'pending', dueDate: { $gte: new Date() } } },
+                  { $sort: { dueDate: 1 } },
+                  { $limit: 1 },
+                  { $project: { taskName: 1, _id: 0 } },
+                ],
+                as: 'nextTask',
+              },
+            },
+            {
+              $addFields: {
+                nextTask: { $arrayElemAt: ['$nextTask.taskName', 0] },
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          __v: 0,
+          createdAt: 0,
+          updatedAt: 0,
+          tasks: 0,
+        },
+      },
+    ]);
+
+    return garden[0] ?? null;
   }
 }

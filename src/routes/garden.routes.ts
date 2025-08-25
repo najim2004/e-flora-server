@@ -17,9 +17,15 @@ export class GardenRouter {
     // crop adding to garden route
     this.router.post(
       '/add-crop/:id',
-      authMiddleware,
+      authMiddleware(),
       ValidationMiddleware.validateParams(GardenValidation.addToGarden),
       this.gardenController.addToGarden.bind(this.gardenController)
+    );
+    // get my garden route
+    this.router.get(
+      '/my-garden',
+      authMiddleware({ accessTokenFirst: true }),
+      this.gardenController.getMyGarden.bind(this.gardenController)
     );
   }
 

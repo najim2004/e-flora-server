@@ -24,7 +24,7 @@ export class CropSuggestionRouter {
   private initializeRoutes(): void {
     this.router.post(
       '/crop-suggestion',
-      authMiddleware,
+      authMiddleware(),
       this.uploadUtil.uploadSingle('image'),
       ValidationMiddleware.validateBody(CropSuggestionValidation.cropSuggestion, req => {
         if (req.file?.filename) {
@@ -35,17 +35,19 @@ export class CropSuggestionRouter {
     );
     this.router.get(
       '/crop-suggestion/result/:id',
+      authMiddleware({ accessTokenFirst: true }),
       ValidationMiddleware.validateParams(DiseaseDetectionValidation.resultParam),
       this.cropSuggestionController.getSingleResult.bind(this.cropSuggestionController)
     );
     this.router.post(
       '/crop-suggestion/histories',
-      authMiddleware,
+      authMiddleware(),
       ValidationMiddleware.validateQuery(DiseaseDetectionValidation.historiesQuery),
       this.cropSuggestionController.getHistories.bind(this.cropSuggestionController)
     );
     this.router.get(
       '/crop-details/:slug',
+      authMiddleware({ accessTokenFirst: true }),
       ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetails),
       this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
     );

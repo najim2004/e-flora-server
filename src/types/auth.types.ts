@@ -12,7 +12,8 @@ export interface LoginCredentials {
 }
 
 export interface AuthResponse {
-  token: string;
+  refreshToken: string;
+  accessToken: string;
   user: Pick<IUser, '_id' | 'name' | 'email' | 'role' | 'appPreferences' | 'profileImage'>;
 }
 
@@ -22,6 +23,7 @@ export enum UserRole {
 }
 
 export interface TokenPayload {
+  tokenName:string;
   _id: string;
   email: string;
   gardenId: string;

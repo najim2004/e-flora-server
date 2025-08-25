@@ -19,7 +19,7 @@ function getTokenFromCookie(cookieHeader: string | undefined): string | null {
     })
   );
 
-  return cookies['token'] || null;
+  return cookies['refreshToken'] || null;
 }
 
 // Socket middleware function

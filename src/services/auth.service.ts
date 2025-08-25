@@ -47,17 +47,32 @@ export class AuthService {
         throw new BadRequestError('Invalid password');
       }
 
-      const token = this.generateToken({
-        _id: user._id,
-        email: user.email,
-        role: user.role,
-        gardenId: user.garden?.toString() || '',
-      });
+      const refreshToken = this.generateToken(
+        {
+          tokenName: 'refresh',
+          _id: user._id,
+          email: user.email,
+          role: user.role,
+          gardenId: user.garden?.toString() || '',
+        },
+        process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || 1000 * 60 * 60 * 24 * 365
+      );
+      const accessToken = this.generateToken(
+        {
+          tokenName: 'access',
+          _id: user._id,
+          email: user.email,
+          role: user.role,
+          gardenId: user.garden?.toString() || '',
+        },
+        process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || 900
+      );
 
       this.logger.info(`User logged in: ${user.email}`);
 
       return {
-        token,
+        refreshToken,
+        accessToken,
         user: userWithoutPassword,
       };
     } catch (error) {
@@ -66,13 +81,13 @@ export class AuthService {
     }
   }
 
-  private generateToken(payload: TokenPayload): string {
+  public generateToken(payload: TokenPayload, expiresIn: string | number): string {
     try {
       return jwt.sign(
         payload,
         process.env.JWT_SECRET as Secret,
         {
-          expiresIn: process.env.JWT_EXPIRES_IN || 1000 * 60 * 60 * 24 * 365,
+          expiresIn,
         } as SignOptions
       );
     } catch (error) {

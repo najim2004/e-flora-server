@@ -26,7 +26,7 @@ export class DiseaseDetectionRoutes {
   private initializeRoutes(): void {
     this.router.post(
       '/disease-detection',
-      authMiddleware,
+      authMiddleware(),
       this.uploadUtil.uploadSingle('image'),
       ValidationMiddleware.validateBody(DiseaseDetectionValidation.diseaseDetection, req => {
         if (req.file?.filename) {
@@ -37,13 +37,13 @@ export class DiseaseDetectionRoutes {
     );
     this.router.get(
       '/disease-detection/result/:id',
-      authMiddleware,
+      authMiddleware(),
       ValidationMiddleware.validateParams(DiseaseDetectionValidation.resultParam),
       this.diseaseDetectionController.getSingleResult
     );
     this.router.post(
       '/disease-detection/histories',
-      authMiddleware,
+      authMiddleware(),
       ValidationMiddleware.validateQuery(DiseaseDetectionValidation.historiesQuery),
       this.diseaseDetectionController.getHistories
     );

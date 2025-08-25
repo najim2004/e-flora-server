@@ -46,4 +46,26 @@ export class GardenController {
       next(error);
     }
   }
+
+  public async getMyGarden(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const user = req?.user;
+    try {
+      if (!user?._id || !user?.gardenId) throw new UnauthorizedError();
+      const { _id: uId, gardenId } = user;
+      this.logger.info(`getMyGarden request received`, { userId: user._id });
+      const garden = await this.gardenService.getMyGarden({ uId, gardenId });
+      this.logger.info(`Garden fetched successfully`, { userId: uId, gardenId });
+      if (!garden) throw new BadRequestError('Garden not found');
+      this.logger.debug('Returning garden data', { gardenId, userId: uId });
+      res.status(200).json({ data: garden, success: true, message: 'Garden fetched successfully' });
+      this.logger.debug('Successfully returned garden data', { gardenId, userId: uId });
+    } catch (error) {
+      this.logger.error('Error in getMyGarden', {
+        error,
+        userId: user?._id,
+        gardenId: user?.gardenId,
+      });
+      next(error);
+    }
+  }
 }
