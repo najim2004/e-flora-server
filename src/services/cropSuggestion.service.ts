@@ -151,12 +151,15 @@ export class CropSuggestionService {
           if (!data?.name || !data?.scientificName) continue;
           const image = (await Image.findOne({
             $or: [{ index: data.scientificName }, { index: data.name }, { index: 'default_image' }],
-          }).select('_id')) as IImage;
+          }).select('_id index url')) as IImage;
           let newImage: { _id: Types.ObjectId } | null = null;
-          if (!image || image?.index == 'default_image') {
+          if (
+            image?.index?.toLowerCase()?.includes('default_image') ||
+            image.url?.toLocaleLowerCase().includes('/placeholder') ||
+            !image
+          ) {
             try {
               const pexelsRes = await new PexelsUtils().fetchImageByName(data.name);
-              console.log('[PEXELS RESPONSE]', pexelsRes);
 
               if (pexelsRes) {
                 const saved = await Image.create({
@@ -166,7 +169,7 @@ export class CropSuggestionService {
                 if (saved) newImage = { _id: saved?._id };
               }
             } catch (error) {
-              console.log('[saveNewCropsBatch line 165]: ', error);
+              console.log('[saveNewCropsBatch line 172]: ', error);
             }
           }
           const [created] = await Crop.create(
