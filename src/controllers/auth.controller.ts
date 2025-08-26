@@ -74,7 +74,7 @@ export class AuthController {
       this.logger.info(`User logged in successfully: ${email}`);
 
       // Instead of res.locals, set it in headers
-      res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+      res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Access-Control-Expose-Headers', 'x-access-token'); // ✨ important
       res.header('x-access-token', accessToken);
