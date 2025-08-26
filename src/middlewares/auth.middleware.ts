@@ -29,14 +29,11 @@ export const authMiddleware = (options: AuthMiddlewareOptions = {}) => {
         },
         parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || '900', 10)
       );
-      res.cookie('accessToken', newToken, {
-        httpOnly: true,
-        secure: false,
-        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
-        maxAge: Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
-          ? Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
-          : 1000 * 60 * 60 * 24 * 365,
-      });
+      // Instead of res.locals, set it in headers
+      res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Expose-Headers', 'x-access-token'); // ✨ important
+      res.header('x-access-token', newToken);
     };
 
     try {

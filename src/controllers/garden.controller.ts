@@ -49,6 +49,7 @@ export class GardenController {
 
   public async getMyGarden(req: Request, res: Response, next: NextFunction): Promise<void> {
     const user = req?.user;
+
     try {
       if (!user?._id || !user?.gardenId) throw new UnauthorizedError();
       const { _id: uId, gardenId } = user;
@@ -57,7 +58,11 @@ export class GardenController {
       this.logger.info(`Garden fetched successfully`, { userId: uId, gardenId });
       if (!garden) throw new BadRequestError('Garden not found');
       this.logger.debug('Returning garden data', { gardenId, userId: uId });
-      res.status(200).json({ data: garden, success: true, message: 'Garden fetched successfully' });
+      res.status(200).json({
+        data: garden,
+        success: true,
+        message: 'Garden fetched successfully',
+      });
       this.logger.debug('Successfully returned garden data', { gardenId, userId: uId });
     } catch (error) {
       this.logger.error('Error in getMyGarden', {

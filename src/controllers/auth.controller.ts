@@ -69,17 +69,15 @@ export class AuthController {
           ? Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
           : 1000 * 60 * 60 * 24 * 365,
       });
-      res.cookie('accessToken', accessToken, {
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
-        secure: false,
-        maxAge: Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
-          ? Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
-          : 1000 * 60 * 60 * 24 * 365,
-      });
 
       // Log successful login
       this.logger.info(`User logged in successfully: ${email}`);
+
+      // Instead of res.locals, set it in headers
+      res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Expose-Headers', 'x-access-token'); // ✨ important
+      res.header('x-access-token', accessToken);
 
       // Return success without sending token in body
       res.status(200).json({
@@ -102,7 +100,7 @@ export class AuthController {
       });
       res.clearCookie('accessToken', {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
         secure: false,
       });
       this.logger.info(`User logged out successfully`);
