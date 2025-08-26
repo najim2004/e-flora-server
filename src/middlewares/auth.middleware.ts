@@ -32,7 +32,7 @@ export const authMiddleware = (options: AuthMiddlewareOptions = {}) => {
       res.cookie('accessToken', newToken, {
         httpOnly: true,
         secure: false,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
         maxAge: Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
           ? Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
           : 1000 * 60 * 60 * 24 * 365,

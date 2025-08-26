@@ -71,7 +71,7 @@ export class AuthController {
       });
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
         secure: false,
         maxAge: Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
           ? Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN)
@@ -102,7 +102,7 @@ export class AuthController {
       });
       res.clearCookie('accessToken', {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
         secure: false,
       });
       this.logger.info(`User logged out successfully`);
