@@ -194,6 +194,9 @@ export class GardenService {
                 status: 1,
                 image: 1,
                 currentStage: 1,
+                plantingDate: 1,
+                createdAt: 1,
+                updatedAt: 1,
               },
             },
             {

@@ -1,15 +1,6 @@
 import { Types } from 'mongoose';
 import { CommonInMongoose } from './common.interface';
 import { LocationWithAddress } from '../types/common.types';
-export interface Weather {
-  maxTemp: number;
-  minTemp: number;
-  humidity: number;
-  rainfall: number;
-  windSpeed: number;
-  dominantWindDirection: string;
-  date: Date;
-}
 
 export type SoilType = 'loamy' | 'sandy' | 'clayey' | 'silty' | 'peaty' | 'chalky' | 'unknown';
 export type Sunlight = 'full' | 'partial' | 'shade';
@@ -28,10 +19,14 @@ export type GardenerType = 'beginner' | 'intermediate' | 'expert';
 export interface IGarden extends CommonInMongoose {
   userId: Types.ObjectId;
   name: string;
+  image: {
+    url: string;
+    imageId: string;
+  };
   description: string;
   location: LocationWithAddress;
   size: number;
-  weather: Weather;
+  weather: Types.ObjectId;
   crops: Types.ObjectId[];
   tasks: Types.ObjectId[];
   activeCrops: number;

@@ -4,6 +4,16 @@ import { IGarden } from '../interfaces/garden.interface';
 const gardenSchema = new Schema<IGarden>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    image: {
+      type: {
+        url: String,
+        imageId: String,
+      },
+      default: {
+        url: '/placeholder.svg',
+        imageId: '',
+      },
+    },
     name: { type: String, default: 'Please name your garden' },
     description: { type: String, default: 'No description provided' },
     location: {
@@ -19,16 +29,8 @@ const gardenSchema = new Schema<IGarden>(
     },
     size: { type: Number, default: 0 },
     weather: {
-      type: {
-        maxTemp: Number,
-        minTemp: Number,
-        humidity: Number,
-        rainfall: Number,
-        windSpeed: Number,
-        dominantWindDirection: String,
-        date: Date,
-      },
-      default: {},
+      type: Schema.Types.ObjectId,
+      ref: 'Weather',
     },
     crops: { type: [{ type: Schema.Types.ObjectId, ref: 'GardenCrop' }], default: [] },
     tasks: { type: [{ type: Schema.Types.ObjectId, ref: 'Task' }], default: [] },
