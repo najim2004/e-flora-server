@@ -61,6 +61,7 @@ export class GardenService {
       await GardenCrop.create({
         userId,
         garden: gId,
+        cropId: crop._id,
         cropName: crop.name,
         scientificName: crop.scientificName,
         plantingGuide: guideId,
@@ -115,7 +116,11 @@ export class GardenService {
         const parsed = this.parseJSON<IPlantingGuide>(raw, 'planting guide');
 
         if (parsed) {
-          const res = await PlantingGuideModel.create({ ...parsed, gardenId, cropId: crop._id });
+          const res = await PlantingGuideModel.create({
+            plantingSteps: parsed,
+            gardenId,
+            cropId: crop._id,
+          });
           return res._id;
         }
       } catch (e) {
@@ -158,10 +163,14 @@ export class GardenService {
 
   public async getMyGarden({ uId, gardenId }: { uId: string; gardenId: string }): Promise<
     | (Omit<IGarden, 'crops' | 'tasks' | 'createdAt' | 'updatedAt'> & {
-        crops: Pick<
+        crops: (Pick<
           IGardenCrop,
           '_id' | 'cropName' | 'scientificName' | 'healthScore' | 'status'
-        > & { image: Pick<IImage, '_id' | 'url' | 'index'>; nextTask: string };
+        > & { image: Pick<IImage, '_id' | 'url' | 'index'>; nextTask: string })[];
+        removedCrops: (Pick<
+          IGardenCrop,
+          '_id' | 'cropName' | 'scientificName' | 'healthScore' | 'status'
+        > & { image: Pick<IImage, '_id' | 'url' | 'index'> })[];
       })
     | null
   > {
@@ -183,8 +192,8 @@ export class GardenService {
                 scientificName: 1,
                 healthScore: 1,
                 status: 1,
-                currentStage: 1,
                 image: 1,
+                currentStage: 1,
               },
             },
             {
@@ -196,11 +205,7 @@ export class GardenService {
                 pipeline: [{ $project: { _id: 1, url: 1, index: 1 } }],
               },
             },
-            {
-              $addFields: {
-                image: { $arrayElemAt: ['$image', 0] },
-              },
-            },
+            { $addFields: { image: { $arrayElemAt: ['$image', 0] } } },
             {
               $lookup: {
                 from: 'tasks',
@@ -215,12 +220,26 @@ export class GardenService {
                 as: 'nextTask',
               },
             },
-            {
-              $addFields: {
-                nextTask: { $arrayElemAt: ['$nextTask.taskName', 0] },
-              },
-            },
+            { $addFields: { nextTask: { $arrayElemAt: ['$nextTask.taskName', 0] } } },
           ],
+        },
+      },
+      {
+        $addFields: {
+          archivedCrops: {
+            $filter: {
+              input: '$crops',
+              as: 'c',
+              cond: { $eq: ['$$c.status', 'removed'] },
+            },
+          },
+          crops: {
+            $filter: {
+              input: '$crops',
+              as: 'c',
+              cond: { $in: ['$$c.status', ['active', 'pending']] },
+            },
+          },
         },
       },
       {

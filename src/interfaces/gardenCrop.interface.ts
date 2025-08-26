@@ -4,6 +4,7 @@ import { CommonInMongoose } from './common.interface';
 export interface IGardenCrop extends CommonInMongoose {
   userId: Types.ObjectId;
   garden: Types.ObjectId;
+  cropId: Types.ObjectId;
   cropName: string;
   description: string;
   scientificName: string;
