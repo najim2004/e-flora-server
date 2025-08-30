@@ -75,13 +75,29 @@ export class CropSuggestionService {
       .populate({ path: 'crops', select: 'name', options: { limit: 5 } });
   }
 
-  public async getCropDetails(slug: string): Promise<ICropDetails | null> {
-    return CropDetails.findOne({ slug })
-      .select('-__v -createdAt -updatedAt')
-      .catch(e => {
-        this.log.error(`getCropDetails failed: ${(e as Error).message}`);
+  public async getCropDetails(slug: string): Promise<(ICropDetails & { image: IImage }) | null> {
+    try {
+      const cropDetails = await CropDetails.findOne({ slug }).select('-__v -createdAt -updatedAt');
+
+      if (!cropDetails) {
         return null;
-      });
+      }
+
+      const image = (await Image.findOne({
+        index: { $regex: new RegExp(cropDetails.cropName, 'i') },
+      }).select('-__v -_id')) as IImage;
+
+      // Construct the object with the retrieved data
+      const result: ICropDetails & { image: IImage } = {
+        ...cropDetails,
+        image: image || { url: '', index: '' },
+      };
+
+      return result;
+    } catch (error) {
+      this.log.error(`getCropDetails failed: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   // --- Weather ---
@@ -243,7 +259,7 @@ export class CropSuggestionService {
         this.emitCropDetail(uid, 'failed', crop.details._id);
       }
 
-      // wait 1.5–2 seconds before next detail 
+      // wait 1.5–2 seconds before next detail
       await new Promise(r => setTimeout(r, 1500 + Math.floor(Math.random() * 500)));
     }
   }
