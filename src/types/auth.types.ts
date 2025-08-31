@@ -23,7 +23,7 @@ export enum UserRole {
 }
 
 export interface TokenPayload {
-  tokenName:string;
+  tokenName: string;
   _id: string;
   email: string;
   gardenId: string;

@@ -77,19 +77,37 @@ export class CropSuggestionService {
 
   public async getCropDetails(slug: string): Promise<(ICropDetails & { image: IImage }) | null> {
     try {
-      const cropDetails = await CropDetails.findOne({ slug }).select('-__v -createdAt -updatedAt');
+      const cropDetails = (await CropDetails.findOne({ slug }).select(
+        '-__v -createdAt -updatedAt'
+      )) as ICropDetails;
 
       if (!cropDetails) {
         return null;
       }
 
-      const image = (await Image.findOne({
-        index: { $regex: new RegExp(cropDetails.cropName, 'i') },
-      }).select('-__v -_id')) as IImage;
+      const searchName = cropDetails.name.trim();
+      let image: IImage | null = null;
+
+      image = (await Image.findOne({
+        index: { $regex: new RegExp(searchName, 'i') }, // 'i' = case-insensitive, substring match
+      })
+        .select('url index')
+        .sort({ updatedAt: -1 })) as IImage;
+
+      if (!image) {
+        const crop = await Crop.findOne({ scientificName: cropDetails.scientificName })
+          .select('image')
+          .populate({
+            path: 'image',
+            select: 'url index',
+          });
+        console.log(crop);
+        image = crop?.image ?? null;
+      }
 
       // Construct the object with the retrieved data
       const result: ICropDetails & { image: IImage } = {
-        ...cropDetails,
+        ...cropDetails?.toObject(),
         image: image || { url: '', index: '' },
       };
 
@@ -243,7 +261,7 @@ export class CropSuggestionService {
           const res = this.parseGeminiJSON<ICropDetails>(raw, 'detail');
           if (!res?.name) throw new Error('Invalid crop detail');
 
-          const saved = await CropDetails.create({ ...res, cropId: crop._id });
+          const saved = await CropDetails.create(res);
           await Crop.findByIdAndUpdate(crop._id, {
             details: {
               status: 'success',

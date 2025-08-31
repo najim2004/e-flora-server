@@ -47,7 +47,7 @@ export class CropSuggestionRouter {
     );
     this.router.get(
       '/crop-details/:slug',
-      // authMiddleware({ accessTokenFirst: true }),
+      authMiddleware({ accessTokenFirst: true }),
       ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetails),
       this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
     );

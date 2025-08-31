@@ -1,4 +1,3 @@
-import { Types } from 'mongoose';
 import { CommonInMongoose } from './common.interface';
 
 export interface GardenTypeSuitability {
@@ -145,7 +144,6 @@ export interface GrowthAndHarvest {
 }
 
 export interface ICropDetails extends CommonInMongoose {
-  cropId: Types.ObjectId;
   name: string;
   scientificName: string;
   type: string;

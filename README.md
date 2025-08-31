@@ -79,7 +79,6 @@ npm run dev
 ### Authentication
 
 - **POST /api/auth/register** - Register a new user
-
   - Body: `{ "name": "User Name", "email": "user@example.com", "password": "password123" }`
 
 - **POST /api/auth/login** - Login a user

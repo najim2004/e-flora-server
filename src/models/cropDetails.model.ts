@@ -1,8 +1,7 @@
-import { model, models, Schema, Model, Document } from 'mongoose';
+import { model, models, Schema, Model } from 'mongoose';
 import { ICropDetails } from '../interfaces/cropDetails.interface';
 
 const cropDetailsSchema = new Schema<ICropDetails>({
-  cropId: { type: Schema.Types.ObjectId, ref: 'Crop', required: true },
   name: { type: String, required: true },
   scientificName: { type: String, required: true },
   type: { type: String, required: true },
@@ -172,34 +171,6 @@ cropDetailsSchema.pre('save', async function (next) {
     next();
   } catch (error) {
     next(error as Error);
-  }
-});
-
-cropDetailsSchema.post('save', async function (doc: Document & ICropDetails) {
-  try {
-    // Get the Crop model
-    const Crop = models.Crop;
-
-    if (!Crop) {
-      throw new Error('Crop model not found');
-    }
-
-    // Update the related Crop document
-    await Crop.findByIdAndUpdate(
-      doc.cropId,
-      {
-        details: {
-          status: 'success',
-          detailsId: doc._id,
-          slug: doc.slug,
-        },
-      },
-      { new: true }
-    );
-  } catch (error) {
-    console.error('Error updating Crop details:', error);
-    // Since this is a post-save hook, we can't prevent the save
-    // But we can log the error for monitoring
   }
 });
 
