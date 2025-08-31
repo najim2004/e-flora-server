@@ -2,12 +2,12 @@ import { IDiseaseDetection } from '../interfaces/diseaseDetection.interface';
 import { IDiseaseDetectionHistory } from '../interfaces/diseaseDetectionHistory.interface';
 
 export interface InputDetectDisease {
-  cropName: string;
-  description?: string;
-  cropId?: string;
-  gardenId?: string;
   userId: string;
   image: Express.Multer.File;
+  mode: 'MANUAL' | 'GARDEN_CROP';
+  cropName?: string;
+  gardenCropId?: string;
+  description?: string;
 }
 
 export interface OutputDetectDisease

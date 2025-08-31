@@ -12,11 +12,11 @@ const DiseaseDetectionHistorySchema = new Schema<IDiseaseDetectionHistory>(
       type: String,
       trim: true,
     },
-    garden: {
+    gardenId: {
       type: Schema.Types.ObjectId,
       ref: 'Garden',
     },
-    crop: {
+    gardenCropId: {
       type: Schema.Types.ObjectId,
       ref: 'Crop',
     },

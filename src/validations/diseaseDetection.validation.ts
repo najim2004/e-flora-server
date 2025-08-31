@@ -2,10 +2,24 @@ import Joi from 'joi';
 
 export class DiseaseDetectionValidation {
   public static diseaseDetection = Joi.object({
-    cropName: Joi.string().required().messages({
-      'string.empty': `"cropName" is required`,
-    }),
+    mode: Joi.string().valid('MANUAL', 'GARDEN_CROP').required(),
     description: Joi.string().allow('', null).optional(),
+    cropName: Joi.when('mode', {
+      is: 'MANUAL',
+      then: Joi.string().required().messages({
+        'string.empty': 'cropName is required for MANUAL mode',
+        'any.required': 'cropName is required for MANUAL mode',
+      }),
+      otherwise: Joi.forbidden(),
+    }),
+    gardenCropId: Joi.when('mode', {
+      is: 'GARDEN_CROP',
+      then: Joi.string().required().messages({
+        'string.empty': 'gardenCropId is required for GARDEN_CROP mode',
+        'any.required': 'gardenCropId is required for GARDEN_CROP mode',
+      }),
+      otherwise: Joi.forbidden(),
+    }),
   });
   public static resultParam = Joi.object({
     id: Joi.string().alphanum().length(24).required().messages({
