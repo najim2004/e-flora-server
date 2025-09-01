@@ -257,4 +257,19 @@ export class GardenService {
 
     return garden[0] ?? null;
   }
+
+  public async getActiveCrops(userId: string): Promise<Pick<IGardenCrop, '_id' | 'cropName' | 'image'>[]> {
+    const uId = new Types.ObjectId(userId);
+    const activeCrops = await GardenCrop.find({
+      userId: uId,
+      status: 'active',
+    })
+    .select('_id cropName image')
+    .populate({
+        path: 'image',
+        select: 'url',
+    });
+
+    return activeCrops;
+  }
 }

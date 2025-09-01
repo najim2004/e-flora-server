@@ -57,7 +57,9 @@ export class DiseaseDetectionService {
 
         // For garden crops, we perform a series of explicit checks to ensure data integrity and authorization.
         // Step 1: Find the user's garden to confirm they have one.
-        const garden = await Garden.findOne({ userId: new Types.ObjectId(userId) }).session(session);
+        const garden = await Garden.findOne({ userId: new Types.ObjectId(userId) }).session(
+          session
+        );
         if (!garden) throw new UnauthorizedError('User does not have a garden.');
 
         // Step 2: Find the specific crop instance.
@@ -356,11 +358,17 @@ export class DiseaseDetectionService {
     userId: string,
     historyId: string
   ): Promise<IDiseaseDetectionHistory | null> {
-    if (!Types.ObjectId.isValid(historyId)) return null;
-    return DiseaseDetectionHistory.findOne({ _id: historyId, userId })
+    const result = (await DiseaseDetectionHistory.findOne({
+      _id: new Types.ObjectId(historyId),
+      userId: new Types.ObjectId(userId),
+    })
       .select('-__v -createdAt -updatedAt -cacheKey -userId')
-      .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
-      .exec();
+      .populate([{ path: 'detectedDisease', select: '-__v -createdAt -updatedAt -embedded' },{
+        path:'image',
+        select:'url index'
+      }])
+      .exec()) as IDiseaseDetectionHistory;
+    return result?.toObject();
   }
 
   public async getPaginatedHistory(
@@ -375,7 +383,7 @@ export class DiseaseDetectionService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate({ path: 'detectedDisease.id', select: '-__v -createdAt -updatedAt -embedded' })
+        .populate({ path: 'detectedDisease', select: '-__v -createdAt -updatedAt -embedded' })
         .exec(),
     ]);
     return { total, histories };

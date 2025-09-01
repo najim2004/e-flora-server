@@ -73,4 +73,24 @@ export class GardenController {
       next(error);
     }
   }
+
+  public async getActiveCrops(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const user = req?.user;
+
+    try {
+      if (!user?._id) throw new UnauthorizedError('User not authenticated');
+
+      this.logger.info(`getActiveCrops request received`, { userId: user._id });
+      const activeCrops = await this.gardenService.getActiveCrops(user._id);
+
+      res.status(200).json({
+        data: activeCrops,
+        success: true,
+        message: 'Active crops fetched successfully',
+      });
+    } catch (error) {
+      this.logger.error('Error in getActiveCrops', { error, userId: user?._id });
+      next(error);
+    }
+  }
 }

@@ -37,7 +37,9 @@ export class DiseaseDetectionRoutes {
     );
     this.router.get(
       '/disease-detection/result/:id',
-      authMiddleware(),
+      authMiddleware({
+        accessTokenFirst: true,
+      }),
       ValidationMiddleware.validateParams(DiseaseDetectionValidation.resultParam),
       this.diseaseDetectionController.getSingleResult
     );

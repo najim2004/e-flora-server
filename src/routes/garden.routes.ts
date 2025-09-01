@@ -27,6 +27,12 @@ export class GardenRouter {
       authMiddleware({ accessTokenFirst: true }),
       this.gardenController.getMyGarden.bind(this.gardenController)
     );
+    // get active garden crops route
+    this.router.get(
+      '/active-crops',
+      authMiddleware(),
+      this.gardenController.getActiveCrops.bind(this.gardenController)
+    );
   }
 
   public getRouter(): Router {
