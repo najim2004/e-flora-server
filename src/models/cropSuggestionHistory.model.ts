@@ -15,20 +15,27 @@ const CropSuggestionHistorySchema = new Schema<ICropSuggestionHistory>(
         longitude: { type: Number, required: true },
       },
       purpose: {
-        type: String,
-        enum: ['eat', 'sell', 'decor', 'educational', 'mixed'],
+        type: [String],
+        enum: [
+          'home-consumption',
+          'commercial-selling',
+          'aesthetic-decoration',
+          'educational-learning',
+          'medicinal-use',
+          'shade-environmental',
+        ],
         required: true,
       },
       sunlight: { type: String, enum: ['full', 'partial', 'shade'], required: true },
       soilType: {
         type: String,
         enum: ['loamy', 'sandy', 'clayey', 'silty', 'peaty', 'chalky', 'unknown'],
-        required: true,
+        required: false, // Made optional
       },
       area: { type: Number, required: true },
       waterSource: {
         type: String,
-        enum: ['tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain'],
+        enum: ['automated', 'manual', 'rainwater', 'tap-water', 'well-water', 'unknown'],
         required: true,
       },
       plantType: {

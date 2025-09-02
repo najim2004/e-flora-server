@@ -51,6 +51,12 @@ export class CropSuggestionRouter {
       ValidationMiddleware.validateParams(CropSuggestionValidation.cropDetails),
       this.cropSuggestionController.getCropDetails.bind(this.cropSuggestionController)
     );
+    this.router.post(
+      '/crop-details/regenerate',
+      authMiddleware(),
+      ValidationMiddleware.validateBody(CropSuggestionValidation.regenerateCropDetails),
+      this.cropSuggestionController.regenerateCropDetails.bind(this.cropSuggestionController)
+    );
   }
   public getRouter(): Router {
     return this.router;

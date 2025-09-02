@@ -95,4 +95,27 @@ export class CropSuggestionController {
       next(error);
     }
   }
+
+  public async regenerateCropDetails(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const user = req.user;
+      if (!user?._id) throw new UnauthorizedError('User not authenticated');
+      const { cropId } = req.body;
+      if (!cropId) throw new BadRequestError('Crop ID is required');
+
+      res.status(200).json({
+        message: 'Request received, regenerating crop details',
+        success: true,
+      });
+
+      this.cropSuggestionService.regenerateCropDetails(cropId, user._id);
+    } catch (error) {
+      this.logger.logError(error as Error, 'CropSuggestion');
+      next(error);
+    }
+  }
 }

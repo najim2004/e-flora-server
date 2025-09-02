@@ -63,10 +63,9 @@ export class CropSuggestionValidation {
       is: 'manual',
       then: Joi.string()
         .valid('loamy', 'sandy', 'clayey', 'silty', 'peaty', 'chalky', 'unknown')
-        .required()
+        .optional() // Made optional
         .messages({
           'any.only': 'Please provide a valid soil type',
-          'any.required': 'Soil type is required',
         }),
       otherwise: Joi.forbidden(),
     }),
@@ -83,7 +82,14 @@ export class CropSuggestionValidation {
     waterSource: Joi.when('mode', {
       is: 'manual',
       then: Joi.string()
-        .valid('tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain', 'unknown')
+        .valid(
+          'automated',
+          'manual',
+          'rainwater',
+          'tap-water',
+          'well-water',
+          'unknown'
+        )
         .required()
         .messages({
           'any.only': 'Please provide a valid water source',
@@ -94,10 +100,24 @@ export class CropSuggestionValidation {
 
     purpose: Joi.when('mode', {
       is: 'manual',
-      then: Joi.string().valid('eat', 'sell', 'decor', 'educational', 'mixed').required().messages({
-        'any.only': 'Please provide a valid purpose',
-        'any.required': 'Purpose is required',
-      }),
+      then: Joi.array()
+        .items(
+          Joi.string().valid(
+            'home-consumption',
+            'commercial-selling',
+            'aesthetic-decoration',
+            'educational-learning',
+            'medicinal-use',
+            'shade-environmental'
+          )
+        )
+        .min(1)
+        .required()
+        .messages({
+          'any.only': 'Please provide a valid purpose',
+          'any.required': 'Purpose is required',
+          'array.min': 'Select at least one purpose',
+        }),
       otherwise: Joi.forbidden(),
     }),
 
@@ -141,6 +161,12 @@ export class CropSuggestionValidation {
   public static cropDetails = Joi.object({
     slug: Joi.string().required().messages({
       'string.empty': `"slug" is required`,
+    }),
+  });
+
+  public static regenerateCropDetails = Joi.object({
+    cropId: Joi.string().required().messages({
+      'string.empty': `"cropId" is required`,
     }),
   });
 }

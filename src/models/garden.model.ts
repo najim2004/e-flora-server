@@ -44,9 +44,16 @@ const gardenSchema = new Schema<IGarden>(
       default: 'rooftop',
     },
     purpose: {
-      type: String,
-      enum: ['eat', 'sell', 'decor', 'educational', 'mixed'],
-      default: 'mixed',
+      type: [String],
+      enum: [
+        'home-consumption',
+        'commercial-selling',
+        'aesthetic-decoration',
+        'educational-learning',
+        'medicinal-use',
+        'shade-environmental',
+      ],
+      default: ['home-consumption'],
     },
     sunlight: { type: String, enum: ['full', 'partial', 'shade'], default: 'full' },
     soilType: {
@@ -57,7 +64,14 @@ const gardenSchema = new Schema<IGarden>(
     },
     waterSource: {
       type: String,
-      enum: ['tube-well', 'tap', 'rainwater', 'storage', 'manual', 'uncertain', 'unknown'],
+      enum: [
+        'automated',
+        'manual',
+        'rainwater',
+        'tap-water',
+        'well-water',
+        'unknown',
+      ],
       default: 'unknown',
     },
     gardenerType: {

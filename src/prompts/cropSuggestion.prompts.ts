@@ -30,68 +30,62 @@ export class CropSuggestionPrompts {
         - \`name\`: Common/local name
         - \`scientificName\`: Botanical name
 
-        ---
+        --- 
 
-        🌿 **Garden Details:**
+        ### 🌿 Garden Details:
 
-        - Plant type: ${plantType}
-        - Gardener type: ${gardenerType}
-        - Garden type: ${gardenType}
-        ${
-          location?.country &&
-          `- Location: {
-            ${location?.city && `- City: ${location.city}`}
-            ${location?.state && `- State: ${location.state}`}
-            ${location?.country && `- Country: ${location.country}`}
-        }`
-        }
-        ${area ? `- Area: ${area} sq.ft` : ''}
-        ${soilType ? `- Soil type: ${soilType}` : ''}
-        ${sunlight ? `- Sunlight: ${sunlight}` : ''}
-        ${waterSource ? `- Water source: ${waterSource}` : ''}
-        ${purpose ? `- Purpose: ${purpose}` : ''}
-        ${currentCrops?.length ? `- Current crops: ${currentCrops.join(', ')}` : ''}
-        ${avoidCurrentCrops ? '- Avoid suggesting crops that are already being grown (see currentCrops)' : ''}
+        - **Plant Types Requested:** ${plantType.join(', ')}
+        - **Main Purposes:** ${purpose.join(', ')}
+        - **Gardener Expertise:** ${gardenerType}
+        - **Garden Type:** ${gardenType}
+        ${location?.country && `- **Location:** ${location.city}, ${location.state}, ${location.country}`}
+        ${area ? `- **Area:** ${area} sq.ft` : ''}
+        ${soilType ? `- **Soil Type:** ${soilType}` : ''}
+        ${sunlight ? `- **Sunlight:** ${sunlight}` : ''}
+        ${waterSource ? `- **Water Source:** ${waterSource}` : ''}
+        ${currentCrops?.length ? `- **Current Crops:** ${currentCrops.join(', ')}` : ''}
+        ${avoidCurrentCrops ? '- **Constraint:** Avoid suggesting crops that are already being grown.' : ''}
 
-        ---
+        --- 
 
-        🌦 **Weather Averages of the Area:**
+        ### 🌦 Weather Averages of the Area:
 
-        - Avg Max Temperature: ${weatherAverages.avgMaxTemp} °C
-        - Avg Min Temperature: ${weatherAverages.avgMinTemp} °C
-        - Avg Humidity: ${weatherAverages.avgHumidity} %
-        - Avg Rainfall: ${weatherAverages.avgRainfall} mm
-        - Avg Wind Speed: ${weatherAverages.avgWindSpeed} km/h
-        - Dominant Wind Direction: ${weatherAverages.dominantWindDirection} °
+        - **Avg Max Temperature:** ${weatherAverages.avgMaxTemp} °C
+        - **Avg Min Temperature:** ${weatherAverages.avgMinTemp} °C
+        - **Avg Humidity:** ${weatherAverages.avgHumidity} %
+        - **Avg Rainfall:** ${weatherAverages.avgRainfall} mm
+        - **Avg Wind Speed:** ${weatherAverages.avgWindSpeed} km/h
+        - **Dominant Wind Direction:** ${weatherAverages.dominantWindDirection} °
 
-        ---
+        --- 
 
-        📄 **Instructions:**
+        ### 📄 **CRITICAL Instructions:**
 
-        - First, consider crops that grow well in the specified **location and weather**.
-        - Then, refine suggestions based on **plant type, garden conditions, gardener expertise, and purpose**.
-        ${
-          avoidCurrentCrops
-            ? '- Do NOT include any crops listed in \`currentCrops\`.'
-            : '- You may include crops from \`currentCrops\` if they match the criteria.'
-        }
-        - Use the attached image for context (sunlight, space, structure, etc.)
+        1.  **Strictly Adhere to Plant Types:** Your suggestions **MUST** be from the \`Plant Types Requested\`. For example, if the user requests 'fruit', you **MUST NOT** suggest vegetables or flowers. If multiple types are requested, you can suggest a mix, but each suggestion must belong to one of the requested types.
+        2.  **Match Purpose Logically:** The suggestions must align with the \`Main Purposes\`. 
+            - If purpose includes 'home-consumption' or 'commercial-selling', suggest edible or cash crops.
+            - If purpose includes 'aesthetic-decoration', suggest beautiful flowers or ornamental plants.
+            - If a user requests 'vegetable' and 'aesthetic-decoration', you could suggest ornamental vegetables like 'Bright Lights' Swiss Chard.
+            - If a user requests 'flower' and 'home-consumption', you could suggest edible flowers like Nasturtiums.
+        3.  **Prioritize Location & Weather:** Your primary filter must be the local climate. Suggest plants that are known to thrive in the given weather conditions.
+        4.  **Consider Gardener Expertise:** Adjust suggestions based on the \`Gardener Expertise\`. Suggest easier plants for beginners.
+        ${avoidCurrentCrops ? '- **Do NOT** include any crops listed in \`Current Crops\`.' : ''}
 
-        ---
+        --- 
 
-        💡 **Return only the JSON output in the following format:**
+        ### 💡 **Return only the JSON output in the following format:**
 
         \`\`\`json
         [
-        {
+          {
             "name": "Tomato",
             "scientificName": "Solanum lycopersicum"
-        },
-        ...
+          },
+          // ... 5 more suggestions
         ]
         \`\`\`
 
-        Do not return any explanation or extra text. Only the JSON array.
+        Do not return any explanation, notes, or surrounding text. Only the clean JSON array.
         `.trim();
   }
 

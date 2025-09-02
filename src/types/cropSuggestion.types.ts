@@ -20,7 +20,7 @@ export interface CropSuggestionInput {
   soilType?: SoilType;
   sunlight?: Sunlight;
   waterSource?: WaterSource;
-  purpose?: Purpose;
+  purpose: Purpose[];
   currentCrops?: string[];
   gardenType: GardenType;
   gardenerType: GardenerType;

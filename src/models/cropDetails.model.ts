@@ -5,109 +5,16 @@ const cropDetailsSchema = new Schema<ICropDetails>({
   name: { type: String, required: true },
   scientificName: { type: String, required: true },
   type: { type: String, required: true },
-  variety: { type: String, required: true },
+  variety: { type: String, required: false },
   description: { type: String, required: true },
   tags: [{ type: String, required: true }],
   difficultyLevel: { type: String, required: true },
   isPerennial: { type: Boolean, required: true },
-  cropCycle: { type: String, required: true },
-  gardenTypeSuitability: {
-    rooftop: {
-      suitable: { type: Boolean },
-      notes: { type: String },
-    },
-    balcony: {
-      suitable: { type: Boolean },
-      notes: { type: String },
-    },
-    land: {
-      suitable: { type: Boolean },
-      notes: { type: String },
-    },
-  },
-  growthConditions: {
-    plantingSeason: { type: String, required: true },
-    plantingTime: { type: String, required: true },
-    climate: { type: String, required: true },
-    temperatureRange: {
-      min: { type: String, required: true },
-      max: { type: String, required: true },
-    },
-    humidityRequirement: { type: String, required: true },
-    sunlight: { type: String, required: true },
-    soil: {
-      type: { type: String, required: true },
-      pH: { type: String, required: true },
-      drainage: { type: String, required: true },
-    },
-    spacingRequirements: { type: String, required: true },
-    containerGardening: {
-      canGrowInPots: { type: Boolean, required: true },
-      potSize: { type: String, required: true },
-      potDepth: { type: String, required: true },
-      drainage: { type: String, required: true },
-    },
-  },
-  careRequirements: {
-    water: {
-      requirement: { type: String, required: true },
-      frequency: { type: String, required: true },
-      waterConservationTips: [{ type: String, required: true }],
-    },
-    fertilizer: {
-      type: { type: String, required: true },
-      schedule: { type: String, required: true },
-    },
-    pruning: { type: String, required: true },
-    support: { type: String, required: true },
-    spaceOptimizationTips: [{ type: String, required: true }],
-    toolsRequired: [{ type: String, required: true }],
-  },
-  growthAndHarvest: {
-    propagationMethods: [{ type: String, required: true }],
-    germinationTime: { type: String, required: true },
-    maturityTime: { type: String, required: true },
-    harvestTime: { type: String, required: true },
-    yieldPerPlant: { type: String, required: true },
-    harvestingTips: [{ type: String, required: true }],
-    pollinationType: { type: String, required: true },
-    seasonalAdjustments: {
-      rooftop: { type: String },
-      balcony: { type: String },
-      land: { type: String },
-    },
-  },
-  pestAndDiseaseManagement: {
-    commonDiseases: [
-      {
-        name: { type: String, required: true },
-        symptoms: { type: String, required: true },
-        treatment: { type: String, required: true },
-      },
-    ],
-    commonPests: [
-      {
-        name: { type: String, required: true },
-        symptoms: { type: String, required: true },
-        treatment: { type: String, required: true },
-      },
-    ],
-  },
-  companionPlanting: {
-    companionPlants: [
-      {
-        name: { type: String, required: true },
-        benefit: { type: String, required: true },
-      },
-    ],
-    avoidNear: [{ type: String, required: true }],
-    notes: { type: String },
-  },
+  cropCycle: { type: String, required: false },
+  // ...
   nutritionalAndCulinary: {
-    nutritionalValue: { type: String, required: true },
-    healthBenefits: { type: String, required: true },
-    culinaryUses: { type: String, required: true },
-    storageTips: { type: String, required: true },
+    // ...
+    storageTips: { type: String, required: false },
   },
   economicAspects: {
     marketDemand: { type: String, required: true },

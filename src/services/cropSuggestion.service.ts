@@ -189,7 +189,7 @@ export class CropSuggestionService {
           let newImage: { _id: Types.ObjectId } | null = null;
           if (
             image?.index?.toLowerCase()?.includes('default_image') ||
-            image.url?.toLocaleLowerCase().includes('/placeholder') ||
+            image?.url?.toLocaleLowerCase().includes('/placeholder') ||
             !image
           ) {
             try {
@@ -238,6 +238,14 @@ export class CropSuggestionService {
   }
 
   // --- Crop Details ---
+  public async regenerateCropDetails(cropId: string, userId: string): Promise<void> {
+    const crop = await Crop.findById(cropId);
+    if (!crop) {
+      throw new Error('Crop not found');
+    }
+    await this.generateDetails([crop], userId);
+  }
+
   private async generateDetails(crops: ICrop[], uid: string): Promise<void> {
     for (const crop of crops) {
       try {

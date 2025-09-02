@@ -5,14 +5,21 @@ import { LocationWithAddress } from '../types/common.types';
 export type SoilType = 'loamy' | 'sandy' | 'clayey' | 'silty' | 'peaty' | 'chalky' | 'unknown';
 export type Sunlight = 'full' | 'partial' | 'shade';
 export type WaterSource =
-  | 'tube-well'
-  | 'tap'
-  | 'rainwater'
-  | 'storage'
+  | 'automated'
   | 'manual'
-  | 'uncertain'
+  | 'rainwater'
+  | 'tap-water'
+  | 'well-water'
   | 'unknown';
-export type Purpose = 'eat' | 'sell' | 'decor' | 'educational' | 'mixed';
+
+export type Purpose =
+  | 'home-consumption'
+  | 'commercial-selling'
+  | 'aesthetic-decoration'
+  | 'educational-learning'
+  | 'medicinal-use'
+  | 'shade-environmental';
+
 export type GardenType = 'rooftop' | 'balcony' | 'backyard' | 'indoor' | 'terrace' | 'field';
 export type GardenerType = 'beginner' | 'intermediate' | 'expert';
 
@@ -34,7 +41,7 @@ export interface IGarden extends CommonInMongoose {
   removedCrops: number;
   notes?: string;
   gardenType: GardenType;
-  purpose: Purpose;
+  purpose: Purpose[];
   sunlight: Sunlight;
   soilType: SoilType[];
   waterSource: WaterSource;
