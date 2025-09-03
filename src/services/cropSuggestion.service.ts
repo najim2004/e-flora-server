@@ -239,11 +239,18 @@ export class CropSuggestionService {
 
   // --- Crop Details ---
   public async regenerateCropDetails(cropId: string, userId: string): Promise<void> {
-    const crop = await Crop.findById(cropId);
-    if (!crop) {
-      throw new Error('Crop not found');
+    this.emitProgress(userId, 'initiated', 0, 'Initiating regeneration process');
+    try {
+      const crop = await Crop.findById(cropId);
+      if (!crop) {
+        throw new Error('Crop not found');
+      }
+      await this.generateDetails([crop], userId);
+      this.emitProgress(userId, 'completed', 100, 'Regeneration complete');
+    } catch (e) {
+      this.log.error(`User ${userId}: ${(e as Error).message}`);
+      this.emitProgress(userId, 'failed', 0, 'Regeneration failed');
     }
-    await this.generateDetails([crop], userId);
   }
 
   private async generateDetails(crops: ICrop[], uid: string): Promise<void> {
