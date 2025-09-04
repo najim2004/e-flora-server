@@ -15,16 +15,19 @@ import { ICrop } from '../interfaces/crop.interface';
 import { Image } from '../models/image.model';
 import { PexelsUtils } from '../utils/pexels.utils';
 import { IImage } from '../interfaces/image.interface';
+import { GardenService } from './garden.service'; // Import GardenService
 
 export class CropSuggestionService {
   private log: Logger;
   private gemini = new GeminiUtils();
   private prompt = new CropSuggestionPrompts();
   private socket: SocketServer;
+  private gardenService: GardenService; // Add GardenService instance
 
   constructor() {
     this.socket = SocketServer.getInstance();
     this.log = Logger.getInstance('CropSuggestion');
+    this.gardenService = new GardenService(); // Initialize GardenService
   }
 
   public async generateCropSuggestion(input: CropSuggestionInput, userId: string): Promise<void> {
@@ -40,6 +43,16 @@ export class CropSuggestionService {
 
       const history = await this.saveHistory(input, userId, allCrops, weather);
       this.emitDone(userId, history._id.toString());
+
+      if (input.mode === 'auto' && input.gardenId) { // Check for auto mode and gardenId
+        for (const crop of allCrops) {
+          await this.gardenService.addPlantToGarden({ // Call addPlantToGarden
+            gardenId: input.gardenId.toString(),
+            uId: userId,
+            cropId: crop._id.toString(),
+          });
+        }
+      }
 
       if (newCrops.length) {
         await this.generateDetails(newCrops, userId);

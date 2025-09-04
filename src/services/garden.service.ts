@@ -58,11 +58,32 @@ export class GardenService {
 
     try {
       const guideId = await this.generateGuide(crop, gId);
+
+      let finalCropName = crop.name;
+      const existingCrops = await GardenCrop.find({
+        userId,
+        cropName: { $regex: `^${crop.name}(\s\d+)?$`, $options: 'i' },
+      });
+
+      if (existingCrops.length > 0) {
+        let maxNum = 1;
+        for (const existingCrop of existingCrops) {
+          const match = existingCrop.cropName.match(/\s(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num >= maxNum) {
+              maxNum = num + 1;
+            }
+          }
+        }
+        finalCropName = `${crop.name} ${maxNum === 1 ? 2 : maxNum}`; // Start with 2 if only base name exists
+      }
+
       await GardenCrop.create({
         userId,
         garden: gId,
         cropId: crop._id,
-        cropName: crop.name,
+        cropName: finalCropName,
         scientificName: crop.scientificName,
         plantingGuide: guideId,
         image: crop.image,
