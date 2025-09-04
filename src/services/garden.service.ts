@@ -13,6 +13,9 @@ import { IGarden } from '../interfaces/garden.interface';
 import { Garden } from '../models/garden.model';
 import { IGardenCrop } from '../interfaces/gardenCrop.interface';
 import { IImage } from '../interfaces/image.interface';
+import { Weather } from '../models/weather.model';
+import { WeatherService, } from '../utils/weather.utils';
+import { IWeather } from '../interfaces/weather.interface';
 
 type CropPreview = Pick<ICrop, '_id' | 'name' | 'scientificName' | 'description' | 'image'>;
 
@@ -79,7 +82,7 @@ export class GardenService {
         finalCropName = `${crop.name} ${maxNum === 1 ? 2 : maxNum}`; // Start with 2 if only base name exists
       }
 
-      await GardenCrop.create({
+      const newGardenCrop = await GardenCrop.create({
         userId,
         garden: gId,
         cropId: crop._id,
@@ -89,6 +92,13 @@ export class GardenService {
         image: crop.image,
         description: crop.description,
       });
+
+      // Update the Garden document to include the new crop's ID
+      await Garden.findByIdAndUpdate(gId, { $push: { crops: newGardenCrop._id } });
+
+      this.log.info(`Garden ${gId} updated with new crop ${newGardenCrop._id}.`);
+      const updatedGarden = await Garden.findById(gId);
+      this.log.info(`Garden crops array after update: ${updatedGarden?.crops}`);
 
       this.emitGardenStatus(userId.toString(), {
         success: true,
@@ -182,12 +192,80 @@ export class GardenService {
     this.socket.cropSuggestion().emitGardenAddingStatus(userId, data);
   }
 
+  private async _getOrCreateDailyWeather(
+    city: string,
+    country: string,
+    state?: string
+  ): Promise<IWeather | null> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+    try {
+      // Try to find cached weather data for today
+      const cachedWeather = await Weather.findOne({
+        'location.city': city,
+        'location.country': country,
+        createdAt: {
+          $gte: today,
+          $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        },
+      });
+
+      if (cachedWeather) {
+        this.log.info(`Cached weather found for ${city}, ${country}`);
+        return cachedWeather;
+      }
+
+      // If not cached, fetch coordinates first
+      this.log.info(`Attempting to fetch coordinates for ${city}, ${country}${state ? ', ' + state : ''}`);
+      const geoService = new WeatherService(); // Instantiate without lat/lon
+      const coordinates = await geoService.getCoordinates(city, country, state);
+
+      if (!coordinates) {
+        this.log.warn(`Failed to get coordinates for ${city}, ${country}${state ? ', ' + state : ''}`);
+        return null;
+      }
+      this.log.info(`Coordinates obtained: Lat ${coordinates.latitude}, Lon ${coordinates.longitude}`);
+
+      // Then fetch new weather data for today using obtained coordinates
+      this.log.info(`Attempting to fetch weather for ${city}, ${country} using coordinates`);
+      const weatherService = new WeatherService(coordinates.latitude, coordinates.longitude);
+      const weather = await weatherService.getCurrentWeather(); // Fetch only for today
+
+      if (!weather) {
+        this.log.warn(`Weather data unavailable for ${city}, ${country}${state ? ', ' + state : ''}`);
+        return null;
+      }
+
+      // Save the new weather data to the database
+      this.log.info(`Saving new weather data for ${city}, ${country}`);
+      const newWeather = await Weather.create({
+        location: {
+          city,
+          country,
+        },
+        data: {
+          ...weather,
+        },
+      });
+
+      return newWeather;
+    } catch (error) {
+      this.log.error(`Error in _getOrCreateDailyWeather for ${city}, ${country}: ${(error as Error).message}`);
+      return null;
+    }
+  }
+
   public async getMyGarden({ uId, gardenId }: { uId: string; gardenId: string }): Promise<
     | (Omit<IGarden, 'crops' | 'tasks' | 'createdAt' | 'updatedAt'> & {
+        weather: IWeather['data'];
         crops: (Pick<
           IGardenCrop,
           '_id' | 'cropName' | 'scientificName' | 'healthScore' | 'status'
-        > & { image: Pick<IImage, '_id' | 'url' | 'index'>; nextTask: string })[];
+        > & {
+          image: Pick<IImage, '_id' | 'url' | 'index'>;
+          nextTask: string;
+        })[];
         removedCrops: (Pick<
           IGardenCrop,
           '_id' | 'cropName' | 'scientificName' | 'healthScore' | 'status'
@@ -276,20 +354,43 @@ export class GardenService {
       },
     ]);
 
-    return garden[0] ?? null;
+    if (!garden[0]) return null;
+
+    const gardenData = garden[0];
+
+    this.log.info(`Garden data after aggregation: ${JSON.stringify(gardenData)}`);
+    this.log.info(`Crops in gardenData: ${JSON.stringify(gardenData.crops)}`);
+
+    this.log.info(`Garden location data: ${JSON.stringify(gardenData.location)}`);
+
+    // Fetch or get cached weather data
+    const weatherData = await this._getOrCreateDailyWeather(
+      gardenData.location.city,
+      gardenData.location.country,
+      gardenData.location.state
+    );
+
+    // Add weather data to the garden object
+    if (weatherData) {
+      gardenData.weather = weatherData.data;
+    }
+
+    return gardenData;
   }
 
-  public async getActiveCrops(userId: string): Promise<Pick<IGardenCrop, '_id' | 'cropName' | 'image'>[]> {
+  public async getActiveCrops(
+    userId: string
+  ): Promise<Pick<IGardenCrop, '_id' | 'cropName' | 'image'>[]> {
     const uId = new Types.ObjectId(userId);
     const activeCrops = await GardenCrop.find({
       userId: uId,
       status: 'active',
     })
-    .select('_id cropName image')
-    .populate({
+      .select('_id cropName image')
+      .populate({
         path: 'image',
         select: 'url',
-    });
+      });
 
     return activeCrops;
   }

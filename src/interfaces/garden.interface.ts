@@ -33,7 +33,6 @@ export interface IGarden extends CommonInMongoose {
   description: string;
   location: LocationWithAddress;
   size: number;
-  weather: Types.ObjectId;
   crops: Types.ObjectId[];
   tasks: Types.ObjectId[];
   activeCrops: number;

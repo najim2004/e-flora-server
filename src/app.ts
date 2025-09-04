@@ -12,6 +12,7 @@ import cookieParser from 'cookie-parser';
 import { cropSuggestionRouter } from './routes/cropSuggestion.routes';
 import { diseaseDetectionRouter } from './routes/diseaseDetection.routes';
 import { gardenRouter } from './routes/garden.routes';
+import './models/weather.model'; // Ensure Weather model is registered
 
 dotenv.config();
 

@@ -12,6 +12,5 @@ export interface IWeather extends CommonInMongoose {
     rainfall: number;
     windSpeed: number;
     dominantWindDirection: string;
-    date: Date;
   };
 }
