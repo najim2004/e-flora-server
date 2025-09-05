@@ -394,4 +394,112 @@ export class GardenService {
 
     return activeCrops;
   }
+
+  public async getGardenCropDetails({ uId, cropId }: { uId: string; cropId: string }): Promise<any> {
+    const [userId, gardenCropId] = [uId, cropId].map(id => new Types.ObjectId(id));
+
+    const cropDetails = await GardenCrop.aggregate([
+      { $match: { _id: gardenCropId, userId } },
+      {
+        $lookup: {
+          from: 'plantingguides',
+          localField: 'plantingGuide',
+          foreignField: '_id',
+          as: 'plantingGuide',
+        },
+      },
+      {
+        $lookup: {
+          from: 'tasks',
+          localField: '_id',
+          foreignField: 'cropId',
+          as: 'tasks',
+        },
+      },
+      {
+        $lookup: {
+          from: 'images',
+          localField: 'image',
+          foreignField: '_id',
+          as: 'image',
+          pipeline: [{ $project: { _id: 1, url: 1, index: 1 } }],
+        },
+      },
+      {
+        $addFields: {
+          image: { $arrayElemAt: ['$image', 0] },
+          plantingGuide: { $arrayElemAt: ['$plantingGuide', 0] },
+        },
+      },
+      {
+        $project: {
+          'plantingGuide.gardenId': 0,
+          'plantingGuide.cropId': 0,
+          'plantingGuide.createdAt': 0,
+          'plantingGuide.updatedAt': 0,
+          'plantingGuide.__v': 0,
+        },
+      },
+    ]);
+
+    if (!cropDetails[0]) {
+      throw new BadRequestError('Crop not found in your garden');
+    }
+
+    return cropDetails[0];
+  }
+
+  public async completePlantingStep({
+    uId,
+    gardenCropId,
+    stepId,
+  }: { uId: string; gardenCropId: string; stepId: string }): Promise<{
+    plantingGuide: IPlantingGuide;
+    gardenCropStatus: string;
+  }> {
+    const userId = new Types.ObjectId(uId);
+    const gCropId = new Types.ObjectId(gardenCropId);
+
+    const gardenCrop = await GardenCrop.findOne({ _id: gCropId, userId });
+    if (!gardenCrop) {
+      throw new BadRequestError('Garden crop not found or does not belong to user');
+    }
+
+    const plantingGuide = await PlantingGuideModel.findById(gardenCrop.plantingGuide);
+    if (!plantingGuide) {
+      throw new BadRequestError('Planting guide not found');
+    }
+
+    // Find the step to mark as completed
+    const stepIndex = plantingGuide.plantingSteps.findIndex(step => step._id?.toString() === stepId);
+    if (stepIndex === -1) {
+      throw new BadRequestError('Planting step not found');
+    }
+
+    // Ensure current step is not decremented and only the current or next incomplete step can be completed
+    const firstIncompleteStepIndex = plantingGuide.plantingSteps.findIndex(step => !step.completed);
+
+    if (stepIndex !== firstIncompleteStepIndex) {
+      throw new BadRequestError('Only the current or next incomplete step can be completed');
+    }
+
+    // Mark the step as completed
+    plantingGuide.plantingSteps[stepIndex].completed = true;
+    await plantingGuide.save();
+
+    // Check if all steps are completed
+    const allStepsCompleted = plantingGuide.plantingSteps.every(step => step.completed);
+    let gardenCropStatus = gardenCrop.status;
+
+    if (allStepsCompleted) {
+      gardenCrop.status = 'active';
+      await gardenCrop.save();
+      gardenCropStatus = 'active';
+    }
+
+    return {
+      plantingGuide: plantingGuide.toObject(),
+      gardenCropStatus,
+    };
+  }
 }

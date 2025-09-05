@@ -33,6 +33,17 @@ export class GardenRouter {
       authMiddleware(),
       this.gardenController.getActiveCrops.bind(this.gardenController)
     );
+    this.router.get(
+      '/crops/:id',
+      authMiddleware({ accessTokenFirst: true }),
+      this.gardenController.getGardenCropDetails.bind(this.gardenController)
+    );
+
+    this.router.post(
+      '/complete-planting-step',
+      authMiddleware(),
+      this.gardenController.completePlantingStep.bind(this.gardenController)
+    );
   }
 
   public getRouter(): Router {

@@ -10,21 +10,13 @@ const plantingGuideSchema = new Schema<IPlantingGuide>({
         title: { type: String, required: true },
         description: { type: String, required: true },
         instructions: { type: [String], default: [] },
-        note: { type: String },
+        tips: { type: String },
+        completed: { type: Boolean, default: false },
       },
     ],
     required: true,
     minlength: [1, 'Planting steps must have at least one step'],
   },
-  numberOfSteps: { type: Number, default: 0 },
-  currentStep: { type: Number, default: 0 },
-  status: { type: String, enum: ['inProgress', 'completed'], default: 'inProgress' },
-});
-
-// ✅ Type-safe pre-save middleware
-plantingGuideSchema.pre<IPlantingGuide & Document>('save', function (next) {
-  this.numberOfSteps = this.plantingSteps?.length || 0;
-  next();
 });
 
 export const PlantingGuideModel = model<IPlantingGuide>('PlantingGuide', plantingGuideSchema);

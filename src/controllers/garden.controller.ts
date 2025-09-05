@@ -93,4 +93,52 @@ export class GardenController {
       next(error);
     }
   }
+
+  public async getGardenCropDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const user = req?.user;
+    const { id: cropId } = req.params as { id: string };
+
+    try {
+      if (!user?._id) throw new UnauthorizedError('User not authenticated');
+
+      this.logger.info(`getGardenCropDetails request received`, { userId: user._id, cropId });
+      const cropDetails = await this.gardenService.getGardenCropDetails({ uId: user._id, cropId });
+
+      res.status(200).json({
+        data: cropDetails,
+        success: true,
+        message: 'Crop details fetched successfully',
+      });
+    } catch (error) {
+      this.logger.error('Error in getGardenCropDetails', { error, userId: user?._id, cropId });
+      next(error);
+    }
+  }
+
+  public async completePlantingStep(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const user = req?.user;
+    const { gardenCropId, stepId } = req.body as { gardenCropId: string; stepId: string };
+
+    try {
+      if (!user?._id) throw new UnauthorizedError('User not authenticated');
+      if (!gardenCropId || stepId === undefined) throw new BadRequestError('Garden crop ID and step ID are required');
+
+      this.logger.info(`completePlantingStep request received`, { userId: user._id, gardenCropId, stepId });
+
+      const updatedData = await this.gardenService.completePlantingStep({
+        uId: user._id,
+        gardenCropId,
+        stepId,
+      });
+
+      res.status(200).json({
+        data: updatedData,
+        success: true,
+        message: 'Planting step completed successfully',
+      });
+    } catch (error) {
+      this.logger.error('Error in completePlantingStep', { error, userId: user?._id, gardenCropId, stepId });
+      next(error);
+    }
+  }
 }

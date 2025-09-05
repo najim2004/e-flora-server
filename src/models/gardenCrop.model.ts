@@ -35,6 +35,11 @@ const adjustCropCount = (garden: IGarden, status: string, change: number): void 
 // ----------- Hooks ----------------
 // Duplicate prevent before save
 gardenCropSchema.pre('save', async function (next) {
+  // Only run this logic if the document is new (i.e., being created for the first time)
+  if (!this.isNew) {
+    return next();
+  }
+
   try {
     const garden = await Garden.findById(this.garden);
     if (!garden) return next();
