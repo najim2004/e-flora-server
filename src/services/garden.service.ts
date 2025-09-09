@@ -293,7 +293,7 @@ export class GardenService {
                 status: 1,
                 image: 1,
                 currentStage: 1,
-                plantingDate: 1,
+                plantedDate: 1,
                 createdAt: 1,
                 updatedAt: 1,
               },
@@ -493,6 +493,7 @@ export class GardenService {
 
     if (allStepsCompleted) {
       gardenCrop.status = 'active';
+      gardenCrop.plantedDate = new Date();
       await gardenCrop.save();
       gardenCropStatus = 'active';
     }

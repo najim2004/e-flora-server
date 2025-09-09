@@ -13,7 +13,7 @@ export class GardenPrompts {
             {
                 "title": "string (required)",
                 "description": "string (required)",
-                "details": ["string", "string", ...] (required),
+                "instructions": ["string", "string", ...] (required),
                 "tips": "string (optional)"
             }
         ]
@@ -21,7 +21,7 @@ export class GardenPrompts {
         Guidelines:
             - Output must be valid JSON, without any extra text or commentary.
             - Each object should represent a distinct, sequential step of the *initial planting process* (e.g., Soil Preparation, Seed Sowing/Transplanting, Initial Watering, Providing Initial Support).
-            - "details" must contain sequential steps/instructions for that specific phase. Add as many steps as required for successful initial planting of this crop.
+            - "instructions" must contain sequential steps/instructions for that specific phase. Add as many steps as required for successful initial planting of this crop.
             - "tips" should provide a helpful hint or advice for that specific step.
             - Keep the descriptions concise, accurate, and actionable.
             - Do not invent irrelevant details; only use reliable agricultural knowledge.

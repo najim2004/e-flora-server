@@ -15,7 +15,7 @@ const gardenCropSchema = new Schema<IGardenCrop>(
     description: { type: String, default: '' },
     status: { type: String, enum: ['pending', 'active', 'removed'], default: 'pending' },
     currentStage: { type: String, default: 'unknown' },
-    plantingDate: Date,
+    plantedDate: Date,
     expectedHarvestDate: Date,
     healthScore: { type: Number, default: 0 },
     image: { type: Schema.Types.ObjectId, ref: 'Image', default: DEFAULT_IMAGE_ID },
@@ -33,54 +33,39 @@ const adjustCropCount = (garden: IGarden, status: string, change: number): void 
 };
 
 // ----------- Hooks ----------------
-// Duplicate prevent before save
 gardenCropSchema.pre('save', async function (next) {
-  // Only run this logic if the document is new (i.e., being created for the first time)
-  if (!this.isNew) {
-    return next();
-  }
-
   try {
     const garden = await Garden.findById(this.garden);
-    if (!garden) return next();
-
-    // Check duplicate crop
-    if (garden.crops.includes(this._id)) {
-      return next(new Error('Duplicate crop not allowed in this garden'));
+    if (!garden) {
+      return next(new Error('Garden not found'));
     }
 
-    // If not duplicate → update garden now
-    garden.crops.push(this._id);
-    adjustCropCount(garden, this.status, 1);
+    if (this.isNew) {
+      // Handle new crop
+      adjustCropCount(garden, this.status, 1);
+      if (!garden.crops.includes(this._id)) {
+        garden.crops.push(this._id);
+      }
+    } else if (this.isModified('status')) {
+      // Handle status change for existing crop
+      const oldStatus = (await models.GardenCrop.findById(this._id))?.status;
+      const newStatus = this.status;
+
+      if (oldStatus && oldStatus !== newStatus) {
+        adjustCropCount(garden, oldStatus, -1);
+        adjustCropCount(garden, newStatus, 1);
+
+        if (newStatus === 'active' && !this.plantedDate) {
+          this.plantedDate = new Date();
+        }
+      }
+    }
+
     await garden.save();
     next();
   } catch (err) {
     next(err as Error);
   }
-});
-
-// Status change handling
-gardenCropSchema.post('findOneAndUpdate', async function (doc, next) {
-  try {
-    if (!doc) return next?.();
-
-    const update = this.getUpdate() as { status?: string };
-    const newStatus = update?.status;
-    const oldStatus = doc.status;
-
-    if (newStatus && newStatus !== oldStatus) {
-      const garden = await Garden.findById(doc.garden);
-      if (!garden) return next?.();
-
-      adjustCropCount(garden, oldStatus, -1);
-      adjustCropCount(garden, newStatus, 1);
-
-      await garden.save();
-    }
-  } catch (err) {
-    console.error('Error in GardenCrop post-update:', err);
-  }
-  next?.();
 });
 
 export const GardenCrop = models.GardenCrop || model<IGardenCrop>('GardenCrop', gardenCropSchema);

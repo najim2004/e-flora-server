@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { model, Schema } from 'mongoose';
 import { IPlantingGuide } from '../interfaces/plantingGuide.interface';
 
 const plantingGuideSchema = new Schema<IPlantingGuide>({
